@@ -1612,7 +1612,7 @@ Occasionally (monthly-ish), Claude may ask:
 You can always ask Claude directly:
 > "Check if the SDLC wizard has updates"
 
-Claude will fetch `https://raw.githubusercontent.com/stefa-n/sdlc-wizard/main/CLAUDE_CODE_SDLC_WIZARD.md` and compare.
+Claude will fetch `https://raw.githubusercontent.com/BaseInfinity/sdlc-wizard/main/CLAUDE_CODE_SDLC_WIZARD.md` and compare.
 
 ---
 

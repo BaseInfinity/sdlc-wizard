@@ -20,7 +20,7 @@ Copy `CLAUDE_CODE_SDLC_WIZARD.md` to your project and follow the setup instructi
 **Option 2: Raw URL reference**
 Point Claude to the raw file when you want to set up SDLC:
 ```
-https://raw.githubusercontent.com/stefa-n/sdlc-wizard/main/CLAUDE_CODE_SDLC_WIZARD.md
+https://raw.githubusercontent.com/BaseInfinity/sdlc-wizard/main/CLAUDE_CODE_SDLC_WIZARD.md
 ```
 
 **Option 3: Fork and customize**
