@@ -1,0 +1,1778 @@
+# Claude Code SDLC Setup Wizard
+
+> **Contribute**: This wizard is community-driven. PRs welcome at [github.com/REPO_URL] - your discoveries help everyone.
+
+> **For Humans**: This wizard helps you implement a battle-tested SDLC enforcement system for Claude Code. It will scan your project, ask questions, and walk you through setup step-by-step. Works for solo developers, teams, and organizations alike.
+
+## What This Is: SDLC for AI Agents
+
+**This SDLC is designed for Claude (the AI) to follow, not humans.**
+
+You set it up, Claude follows it. The magic is that structured human engineering practices (planning, TDD, confidence levels) happen to be exactly what AI agents need to stay on track.
+
+| Human SDLC | Why It Works for AI |
+|------------|---------------------|
+| Plan before coding | AI must understand before acting, or it guesses wrong |
+| TDD Red-Green-Pass | AI needs concrete pass/fail feedback to verify its work |
+| Confidence levels | AI needs to know when to ask vs when to proceed |
+| Self-review | AI catches its own mistakes before showing you |
+| TodoWrite visibility | You see what AI is doing (no black box) |
+
+**The result:** Claude follows a disciplined engineering process automatically. You just review and approve.
+
+---
+
+## KISS: Keep It Simple, Stupid
+
+**If something feels complex, simplify another layer.**
+
+When confused or stuck, ask:
+- Is this the right approach?
+- Is there a better way?
+- Maybe it's hard for the wrong reasons?
+
+**If it's hard, question WHY it's hard.** Don't just power through complexity - step back and simplify.
+
+---
+
+## Philosophy: Sensible Defaults, Smart Customization
+
+This wizard provides **opinionated defaults** optimized for AI agent workflows. You can customize, but understand what's load-bearing.
+
+### CORE NON-NEGOTIABLES (Don't Change These)
+
+These aren't preferences - they're **how AI agents stay on track**:
+
+| Core Principle | Why It's Critical for AI |
+|----------------|--------------------------|
+| **TDD Red-Green-Pass** | AI agents need concrete pass/fail feedback. Without failing tests first, Claude can't verify its work. This is the feedback loop that keeps implementation correct. |
+| **Testing Diamond** | Integration tests catch real bugs. Unit tests with mocks can "pass" while production fails. AI agents need tests that actually validate behavior. |
+| **Confidence Levels** | Prevents Claude from guessing when uncertain. LOW confidence = ASK USER. This stops runaway bad implementations. |
+| **TodoWrite Visibility** | You need to see what Claude is doing. Without visibility, Claude can go off-track without you knowing. |
+| **Planning Before Coding** | Claude must understand before implementing. Skipping planning = wasted effort and wrong approaches. |
+
+**WARNING:** Deviating from these fundamentals will break the system. The SDLC works because these pieces work together. Remove one and the whole system degrades.
+
+---
+
+### SAFELY CUSTOMIZABLE (Change Freely)
+
+These adapt to your stack without affecting core behavior:
+
+| Customization | Examples |
+|---------------|----------|
+| **Test framework** | Jest, Vitest, pytest, Go testing, etc. |
+| **Commands** | Your specific lint, build, test commands |
+| **Code style** | Tabs/spaces, quotes, semicolons |
+| **Pre-commit checks** | Which checks to run (lint, typecheck, build) |
+| **Documentation structure** | Your doc naming and organization |
+| **Feature doc suffix** | Claude scans for existing patterns, suggests based on what you have, or lets you define custom |
+| **Source directory patterns** | `/src/`, `/app/`, `/lib/`, etc. |
+| **Test directory patterns** | `/tests/`, `/__tests__/`, `/spec/` |
+| **Mocking rules** | What to mock in YOUR stack (external APIs, etc.) |
+| **Code review agent** | Enable/disable self-review subagent |
+| **Security review triggers** | What's security-sensitive in your domain |
+
+---
+
+### RISKY CUSTOMIZATIONS (Strong Warnings)
+
+You CAN change these, but understand the trade-offs:
+
+| Customization | Default | Risk if Changed |
+|---------------|---------|-----------------|
+| **Testing shape** | Diamond (integration-heavy) | Pyramid (unit-heavy) = mocks can hide real bugs, AI gets false confidence |
+| **TDD strictness** | Strict (test first always) | Flexible = AI may skip tests, no verification of correctness |
+| **Planning mode** | Required for implementation | Skipping = Claude codes without understanding, wasted effort |
+| **Confidence thresholds** | LOW < 60% = must ask | Higher threshold = Claude proceeds when unsure, mistakes |
+
+**If you change these:** The wizard will warn you. You can override, but you're accepting the risk.
+
+---
+
+### Smart Recommendations (Not Just Detection)
+
+During setup, Claude will:
+
+1. **Scan your project** - Find package managers (package.json, Cargo.toml, go.mod, pyproject.toml, etc.), test files, CI configs
+2. **Recommend best practices** - Based on YOUR stack and what Claude discovers, not assumptions
+3. **Explain the recommendation** - Why this approach works best with AI agents
+4. **Let you decide** - Accept defaults or customize with full understanding
+5. **Ask if unsure** - Claude will ask rather than guess about your stack
+
+**Example:**
+```
+Scan result: Found Jest, mostly unit tests, heavy mocking
+Recommendation: Testing Diamond with integration tests
+Why: Your current unit tests with mocks may pass while production fails.
+     Integration tests give Claude reliable feedback.
+Action: [Accept Recommendation] or [Keep Current Approach (with warnings)]
+```
+
+---
+
+### The Goal
+
+**The True Goal:** Not just keeping AI Agents following SDLC, but creating a **self-improving partnership** where:
+- Humans always feel **in control**
+- Both sides **learn and get better** over time
+- The process **organically evolves** through collaboration
+- **Human + AI collaboration** working together - everyone wins
+
+This frames the wizard as a partnership, not a constraint.
+
+**What this means in practice:**
+1. Have a process that Claude follows consistently
+2. Make the process visible (TodoWrite, confidence levels)
+3. Enforce quality gates (tests pass, review before commit)
+4. Let Claude ask when uncertain
+5. **Customize what makes sense, keep what keeps AI on track**
+
+---
+
+## Prerequisites
+
+| Requirement | Why |
+|-------------|-----|
+| **Claude Code** | This system uses Claude Code hooks and skills |
+| **Git repository** | Files should be committed for team sharing |
+
+---
+
+## What You're Setting Up
+
+A workflow enforcement system that makes Claude Code:
+- **Plan before coding** (Planning Mode → research → present approach)
+- **Follow TDD** (write failing tests first, then implement)
+- **Track progress** (TodoWrite for visibility)
+- **Self-review** (catch issues before showing you)
+- **Ask when unsure** (confidence levels prevent guessing)
+
+**The Result**: Claude becomes a disciplined engineer who follows your process automatically.
+
+---
+
+## Philosophy First (Read This)
+
+Before we configure anything, understand WHY this system works:
+
+### 1. Planning Mode is Your Best Friend
+
+**Start almost every task in Planning Mode.** Here's why:
+
+**Hidden Benefit: Free Context Reset**
+After planning, you get a free `/compact` - Claude's plan is preserved in the summary, and you start implementation with clean context. This is one of the biggest advantages of plan mode.
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ WITHOUT Planning Mode                                           │
+│                                                                 │
+│ User: "Add authentication"                                      │
+│ Claude: *immediately starts writing code*                       │
+│ Result: Maybe wrong approach, wasted effort, rework             │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│ WITH Planning Mode                                              │
+│                                                                 │
+│ User: "Add authentication" + enters plan mode                   │
+│ Claude: *researches codebase, understands patterns*             │
+│ Claude: "Here's my approach. Confidence: MEDIUM. Questions..."  │
+│ User: *approves or adjusts*                                     │
+│ Claude: *now implements with clear direction*                   │
+│ Result: Right approach, efficient implementation                │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Planning Mode + /compact = Maximum Efficiency**:
+1. Claude researches in Planning Mode (can't edit files yet)
+2. Claude presents approach with confidence level
+3. You approve → Claude updates any docs with discoveries
+4. You run `/compact` to free context (plan is preserved in summary)
+5. Claude implements with clean context and clear direction
+
+**What is /compact?**
+`/compact` is a Claude Code command that summarizes the conversation and clears context. The summary preserves key decisions, plans, and context. This frees up Claude's "working memory" for implementation. The plan file Claude created still exists on disk, and the summary contains the agreed approach - so nothing is lost.
+
+**Why this matters:** Claude Code has limited context. After planning (which involves reading many files), you want to free that space. The plan is captured, docs are updated, and now Claude has room to focus on implementation.
+
+### 2. Confidence Levels Prevent Disasters
+
+Claude MUST state confidence before implementing:
+
+| Level | Meaning | What Claude Does |
+|-------|---------|------------------|
+| **HIGH (90%+)** | "I know exactly what to do" | Proceeds after your approval |
+| **MEDIUM (60-89%)** | "Solid approach, some unknowns" | Highlights uncertainties |
+| **LOW (<60%)** | "I'm not sure" | **ASKS YOU before proceeding** |
+| **FAILED 2x** | "Something's wrong" | **STOPS and asks for help** |
+| **CONFUSED** | "I don't understand why this is failing" | **STOPS, describes what was tried** |
+
+**Why this matters**: You have domain expertise. When Claude is uncertain, asking you takes 30 seconds. Guessing wrong takes 30 minutes to fix.
+
+### 3. TDD (Recommended, Customize to Your Needs)
+
+The classic TDD cycle:
+```
+RED   → Write test that FAILS (proves feature doesn't exist)
+GREEN → Implement feature (test passes)
+PASS  → All tests pass (no regressions)
+```
+
+**The core principle:** Have a testing strategy. Know what you're testing and why.
+
+**Customize for your team:**
+- Strict TDD (test first always)? Great.
+- Test-after for some cases? Fine, just be consistent.
+- The key: **don't commit code that breaks existing tests.**
+
+### 4. Testing Strategy (Define Yours)
+
+Here's the "Testing Diamond" approach (recommended for AI agents):
+
+```
+        /\           ← Few E2E (automated like Playwright, or manual sign-off)
+       /  \
+      /    \
+     /------\
+    |        |       ← MANY Integration (real DB, real cache - BEST BANG FOR BUCK)
+    |        |
+     \------/
+      \    /
+       \  /
+        \/           ← Few Unit (pure logic only)
+```
+
+**Why Integration Tests are Best Bang for Buck:**
+- **Speed**: Fast enough to run on every change
+- **Stability**: Touch real code, not mocks that lie
+- **Confidence**: If integration tests pass, production usually works
+- **AI-friendly**: Give Claude concrete pass/fail feedback on real behavior
+
+**E2E vs Manual Testing:**
+- **E2E (automated)**: Playwright, Cypress - runs without human
+- **Manual testing**: Human sign-off at the very end
+- **Goal**: Zero manual testing. Only for final verification when 100% confident.
+
+**But your team decides:**
+
+| Question | Your Choice |
+|----------|-------------|
+| Do you need E2E tests? | Maybe not for backend-only services |
+| Heavy on unit tests? | Fine for pure logic codebases |
+| Integration-first? | Great for systems with real DBs |
+| No tests yet? | Start somewhere, even basic tests help |
+
+**The point:** Have a testing strategy documented in TESTING.md. Claude will follow whatever approach you define.
+
+### 5. Mocking Strategy (Philosophy, Not Just Tech)
+
+**The Problem:** AI agents (and humans) tend to mock too much. Tests that mock everything test nothing - they just verify the mocks work, not the actual code.
+
+**Minimal Mocking Philosophy:**
+
+| Dependency | Mock It? | Reasoning |
+|------------|----------|-----------|
+| Database | ❌ NEVER | Use test DB or in-memory |
+| Cache | ❌ NEVER | Use isolated test instance |
+| External APIs | ✅ YES | Real calls = flaky + expensive |
+| Time/Date | ✅ YES | Determinism |
+
+**The key insight:** When you mock something, you're saying "I trust this works." Only mock things you truly can't control (external APIs, third-party services).
+
+**But your team decides:**
+- Heavy mocking preferred? Document it.
+- No mocking at all? Document it.
+- Mocks from fixtures? Document where fixtures live (e.g., `tests/fixtures/`).
+
+**The point:** Have a mocking strategy documented. Claude will follow it. The goal is tests that prove real behavior, not just pass.
+
+### 6. SDET Wisdom (Test Code is First-Class)
+
+**Test Code = First-Class Citizen**
+Treat test code like app code - code review, quality standards, not throwaway. Tests are production-critical infrastructure.
+
+**Before fixing a failing test, ask:**
+1. Do we even need this test? (Is it for deleted/legacy code?)
+2. Is this tested better elsewhere? (DRY applies to tests too)
+3. Is the test wrong, or is the code wrong?
+
+**Don't ignore flaky tests:**
+- Flaky tests have revealed rare edge case bugs that later hit production
+- "Nothing stings more than a flaky test you ignored coming back to bite you in prod"
+- Dig into every failure - sweeping under the rug compounds problems
+
+**Three categories of test failures:**
+
+| Category | Examples | Fix |
+|----------|----------|-----|
+| **Test code bug** | Not parallel-safe, shared state, wrong assertions | Fix the test code (most common) |
+| **Application bug** | Race condition, timing issue, edge case | Fix the app code - test found a real bug |
+| **Environment/Infra bug** | CI config, memory, isolation issues | Fix the environment/setup/teardown |
+
+**MCP Awareness for Testing (optional, nuanced):**
+- **Where MCP adds real value:** E2E/browser testing (can't "see" UI without it), graphics projects, external systems Claude can't otherwise access
+- **Often overkill for:** API/Integration tests (reading code/docs is usually sufficient), internal code work
+- **Reality check:** As Claude improves, fewer MCPs are needed. Claude Code has MCP Tool Search (dynamically loads tools >10% context)
+- **The rule:** Suggest where it adds real value, don't force it. Let user decide.
+
+---
+
+### 7. Delete Legacy Code (No Fallbacks)
+
+When refactoring:
+- Delete old code FIRST
+- If something breaks, fix it properly
+- No backwards-compatibility hacks
+- No "just in case" fallbacks
+
+**Why this works with TDD:** Your tests are your safety net. If deleting breaks something, tests catch it. Fix properly, don't create hybrid systems. This simplifies your codebase and lets you "play golf" - less code to maintain.
+
+### 8. Documentation Hygiene
+
+Before starting any task, Claude should:
+
+1. **Find relevant documentation** - Search for docs related to the feature/system
+2. **Assess documentation health** - Is it current? Bloated? Useful?
+3. **ASK before cleaning** - Never delete or refactor docs without user approval
+
+**Signs a doc might need attention:**
+- Very large file with mixed concerns
+- Outdated information mixed with current
+- Duplicate information across files
+- Hard to find what you need
+
+**But remember:**
+- Complex systems have complex docs - that's OK
+- Size alone doesn't mean bloat - some things ARE complex
+- Context and usefulness matter more than line count
+- When in doubt, ASK the user
+
+**The rule:** Identify doc issues during planning, propose cleanup, get approval. Never nuke docs on your own.
+
+### 9. Security Review (Calibrated to Your Project)
+
+Security review depth should match your project's risk profile. During wizard setup, Claude will ask about your context to calibrate:
+
+**Calibration Questions (during wizard):**
+- Is this a personal project or production?
+- Internal tool or public-facing?
+- Handling sensitive data (PII, payments)?
+- How many users?
+- What's your attack surface?
+
+**Then Claude calibrates:**
+
+| Project Type | Security Review Depth |
+|--------------|----------------------|
+| Personal/learning project | Quick sanity check ("anything obvious?") |
+| Internal tool, few users | Basic review of exposed endpoints |
+| Production, sensitive data | Full review: auth, input validation, data exposure |
+| Payment/financial | Extra scrutiny, consider external audit |
+
+**Quick reference - which changes need review?**
+
+| Change Type | Review? |
+|-------------|---------|
+| Auth/login changes | Yes |
+| User input handling | Yes |
+| API endpoints | Yes |
+| Database queries | Yes |
+| File operations | Yes |
+| Internal refactoring | Usually no |
+| UI/styling only | Usually no |
+
+**What to check (when warranted):**
+- Input validation at system boundaries
+- Authentication/authorization on sensitive operations
+- Data exposure risks
+- Patterns appropriate for YOUR stack and attack surface
+
+**The principle:** Always do a security review, but depth varies. A personal CLI tool doesn't need the same scrutiny as a payment API. Claude can always say "nothing to see here" for low-risk changes.
+
+**Customize in wizard:** You can set your default review depth, and Claude will adjust based on what the code actually touches.
+
+---
+
+## Example Workflow (End-to-End)
+
+Here's what a typical task looks like with this system:
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│ USER: "Add a password reset feature"                                    │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│ HOOK FIRES: SDLC baseline reminder + AUTO-INVOKE instruction            │
+│ CLAUDE: Sees implementation task → invokes sdlc skill                   │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│ PHASE 1: PLANNING                                                       │
+│                                                                         │
+│ Claude:                                                                 │
+│ 1. Creates TodoWrite with SDLC steps                                   │
+│ 2. Searches for relevant docs (auth docs, API docs, etc.)              │
+│ 3. Checks doc health - flags if anything needs attention               │
+│ 4. Researches codebase (existing auth patterns, DB schema)             │
+│ 5. Presents approach:                                                   │
+│                                                                         │
+│    "My approach:                                                        │
+│    - Add /reset-password endpoint                                       │
+│    - Use existing email service                                         │
+│    - Store tokens in users table                                        │
+│                                                                         │
+│    Confidence: MEDIUM                                                   │
+│    Uncertainty: Not sure about token expiry - 1 hour or 24 hours?"     │
+│                                                                         │
+│ User: "Use 1 hour. Looks good."                                        │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│ PHASE 2: TRANSITION                                                     │
+│                                                                         │
+│ Claude:                                                                 │
+│ 1. Updates relevant docs with decisions/discoveries                    │
+│ 2. "Docs updated. Ready for /compact before implementation?"           │
+│                                                                         │
+│ User: runs /compact                                                    │
+│                                                                         │
+│ (Context freed, plan preserved in summary)                             │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│ PHASE 3: IMPLEMENTATION (TDD)                                           │
+│                                                                         │
+│ Claude:                                                                 │
+│ 1. TDD RED: Writes failing test for password reset                     │
+│    - Test expects endpoint to exist, return success                    │
+│    - Test FAILS (endpoint doesn't exist yet)                           │
+│                                                                         │
+│ 2. TDD GREEN: Implements password reset                                │
+│    - Creates endpoint, email logic, token handling                     │
+│    - Test PASSES                                                        │
+│                                                                         │
+│ 3. Runs lint/typecheck                                                 │
+│ 4. Runs ALL tests - no regressions                                     │
+│ 5. Production build check                                               │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│ PHASE 4: REVIEW                                                         │
+│                                                                         │
+│ Claude:                                                                 │
+│ 1. DRY check - no duplicated logic                                     │
+│ 2. Self-review with code-reviewer subagent                             │
+│ 3. Security review (auth change = yes)                                 │
+│    - ✅ Token properly hashed                                          │
+│    - ✅ Rate limiting on endpoint                                       │
+│    - ✅ No password in logs                                             │
+│                                                                         │
+│ 4. Presents summary:                                                    │
+│    "Done. Added password reset with 1-hour tokens.                      │
+│     3 files changed, tests passing, security reviewed.                  │
+│     Ready for your review."                                             │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+This is what the system enforces automatically. Claude follows this workflow because:
+- **Hooks** remind every prompt
+- **Skills** provide detailed guidance when invoked
+- **TodoWrite** makes progress visible
+- **Confidence levels** prevent guessing
+- **TDD** ensures correctness
+- **Self-review** catches issues before you see them
+
+---
+
+## Recommended Documentation Structure
+
+For Claude to be effective at SDLC enforcement, your project should have these docs:
+
+| Document | Purpose | Claude Uses For |
+|----------|---------|-----------------|
+| **CLAUDE.md** | Claude-specific instructions | Commands, code style, project rules |
+| **README.md** | Project overview | Understanding what the project does |
+| **ARCHITECTURE.md** | System design, data flows, services | Understanding how components connect |
+| **TESTING.md** | Testing philosophy, patterns, commands | TDD guidance, test organization |
+| **SDLC.md** | Development workflow (this system) | Full SDLC reference |
+| **Feature docs** | Per-feature documentation | Context for specific changes |
+
+**Why these matter:**
+- **CLAUDE.md** - Claude reads this automatically every session. Put commands, style rules, architecture overview here.
+- **ARCHITECTURE.md** - Claude needs to understand how your system fits together before making changes.
+- **TESTING.md** - Claude needs to know your testing approach, what to mock, what not to mock.
+- **Feature docs** - For complex features, Claude reads these during planning to understand context.
+
+**Start simple, expand over time:**
+1. Create CLAUDE.md with commands and basic architecture
+2. Create TESTING.md with your testing approach
+3. Add ARCHITECTURE.md when system grows complex
+4. Add feature docs as major features emerge
+
+---
+
+## Step 0: Auto-Scan Your Project (Claude Does This)
+
+**Before asking questions, Claude will automatically scan your project:**
+
+Claude is language-agnostic and will discover your stack, not assume it:
+
+```
+Claude scans for:
+├── Package managers (any language):
+│   ├── package.json, package-lock.json, pnpm-lock.yaml  → Node.js
+│   ├── Cargo.toml, Cargo.lock                           → Rust
+│   ├── go.mod, go.sum                                   → Go
+│   ├── pyproject.toml, requirements.txt, Pipfile        → Python
+│   ├── Gemfile, Gemfile.lock                            → Ruby
+│   ├── build.gradle, pom.xml                            → Java/Kotlin
+│   └── ... (any package manifest)
+│
+├── Source directories: src/, app/, lib/, server/, pkg/, cmd/
+├── Test directories: tests/, __tests__/, spec/, *_test.*, test_*.py
+├── Test frameworks: detected from config files and test patterns
+├── Lint/format tools: from config files
+├── CI/CD: .github/workflows/, .gitlab-ci.yml, etc.
+├── Feature docs: *_PLAN.md, *_DOCS.md, *_SPEC.md, docs/
+└── README, CLAUDE.md, ARCHITECTURE.md
+```
+
+**If Claude can't detect something, it asks.** Never assumes.
+
+**Examples are just examples.** The patterns above show common conventions - Claude will discover YOUR actual patterns.
+
+**Claude then presents findings:**
+```
+📊 Project Scan Results:
+
+Detected:
+- Language: TypeScript (tsconfig.json found)
+- Source: src/
+- Tests: tests/ (Jest, 47 test files)
+- Lint: ESLint (.eslintrc.js)
+- Build: npm run build
+
+Feature Docs:
+- Found: AUTH_PLAN.md, PAYMENTS_PLAN.md, API_PLAN.md
+- Pattern detected: *_PLAN.md (3 files)
+
+Testing Analysis:
+- 80% unit tests, 20% integration tests
+- Heavy mocking detected (jest.mock in 35 files)
+
+Recommendation: Your current tests rely heavily on mocks.
+   For AI agents, Testing Diamond (integration-heavy) works better.
+   Mocks can "pass" while production fails.
+
+📝 Feature Doc Suffix:
+   Current pattern: *_PLAN.md
+   Recommended: *_DOCS.md (clearer for living documents)
+
+   Options:
+   [1] Keep *_PLAN.md (don't rename existing files)
+   [2] Use *_DOCS.md for NEW docs only (existing stay as-is)
+   [3] Rename all to *_DOCS.md (will rename 3 files)
+   [4] Custom suffix: ____________
+
+📄 Feature Doc Structure:
+   Your docs don't follow our recommended structure.
+
+   Your current structure:
+   - AUTH_PLAN.md: Free-form notes, no sections
+   - PAYMENTS_PLAN.md: Has "TODO" and "Notes" sections
+
+   Our recommended structure:
+   - Overview, Architecture, Gotchas, Future Work
+
+   Options:
+   [1] Migrate content into new structure (Claude reorganizes)
+   [2] Create new docs with our structure, archive old ones to /docs/archived/
+   [3] Keep current structure (just be consistent going forward)
+
+[Accept Recommendations] or [Customize]
+```
+
+**If Claude can't detect something, THEN it asks.**
+
+---
+
+## Step 1: Confirm or Customize
+
+Claude presents what it found. You confirm or override:
+
+### Project Structure (Auto-Detected)
+
+**Source directory:** `src/` ✓ detected
+```
+Override? (leave blank to accept): _______________
+```
+
+**Q2: Where do your tests live?**
+```
+Examples: tests/, __tests__/, src/**/*.test.ts, spec/
+Your answer: _______________
+```
+
+**Q3: What's your test framework?**
+```
+Options: Jest, Vitest, Playwright, Cypress, pytest, Go testing, other
+Your answer: _______________
+```
+
+### Commands
+
+**Q4: What runs your linter?**
+```
+Examples: npm run lint, pnpm lint, eslint ., biome check
+Your answer: _______________
+```
+
+**Q5: What runs type checking?**
+```
+Examples: npm run typecheck, tsc --noEmit, mypy, none
+Your answer: _______________
+```
+
+**Q6: What runs all tests?**
+```
+Examples: npm run test, pnpm test, pytest, go test ./...
+Your answer: _______________
+```
+
+**Q7: What runs a specific test file?**
+```
+Examples: npm run test -- path/to/test.ts, pytest path/to/test.py
+Your answer: _______________
+```
+
+**Q8: What builds for production?**
+```
+Examples: npm run build, pnpm build, go build, cargo build
+Your answer: _______________
+```
+
+### Infrastructure
+
+**Q9: What database(s) do you use?**
+```
+Examples: PostgreSQL, MySQL, SQLite, MongoDB, none
+Your answer: _______________
+```
+
+**Q10: Do you use caching (Redis, etc.)?**
+```
+Examples: Redis, Memcached, none
+Your answer: _______________
+```
+
+**Q11: How long do your tests take?**
+```
+Examples: <1 minute, 1-5 minutes, 5+ minutes
+Your answer: _______________
+```
+
+### Testing Philosophy
+
+**Q12: What's your testing approach?**
+```
+Options:
+- Strict TDD (test first always)
+- Test-after (write tests after implementation)
+- Mixed (depends on the feature)
+- Minimal (just critical paths)
+- None yet (want to start)
+Your answer: _______________
+```
+
+**Q13: What types of tests do you want?**
+```
+(Check all that apply)
+[ ] Unit tests (pure logic, isolated)
+[ ] Integration tests (real DB, real services)
+[ ] E2E tests (Playwright, Cypress, etc.)
+[ ] API tests (endpoint testing)
+[ ] Other: _______________
+```
+
+**Q14: Your mocking philosophy?**
+```
+Options:
+- Minimal mocking (real DB, mock external APIs only)
+- Heavy mocking (mock most dependencies)
+- No mocking (everything real, even external)
+- Not sure yet
+Your answer: _______________
+```
+
+---
+
+### Using Your Answers
+
+Your answers map to these files:
+
+| Question | Used In |
+|----------|---------|
+| Q1 (source dir) | `tdd-pretool-check.sh` - pattern match |
+| Q2 (test dir) | `TESTING.md` - documentation |
+| Q3 (test framework) | `TESTING.md` - documentation |
+| Q4-Q8 (commands) | `CLAUDE.md` - Commands section |
+| Q9-Q10 (infra) | `CLAUDE.md` - Architecture section, `TESTING.md` - mock decisions |
+| Q11 (test duration) | `SDLC skill` - wait time note |
+| Q12 (E2E) | `testing skill` - testing diamond top |
+
+---
+
+## Step 2: Create Directory Structure
+
+Create these directories in your project root:
+
+```bash
+mkdir -p .claude/hooks
+mkdir -p .claude/skills/sdlc
+mkdir -p .claude/skills/testing
+```
+
+**Commit to Git:** Yes! These files should be committed so your whole team gets the same SDLC enforcement. When teammates pull, they get the hooks and skills automatically.
+
+Your structure should look like:
+```
+your-project/
+├── .claude/
+│   ├── hooks/
+│   │   ├── sdlc-prompt-check.sh    (we'll create)
+│   │   └── tdd-pretool-check.sh    (we'll create)
+│   ├── skills/
+│   │   ├── sdlc/
+│   │   │   └── SKILL.md            (we'll create)
+│   │   └── testing/
+│   │       └── SKILL.md            (we'll create)
+│   └── settings.json               (we'll create)
+├── CLAUDE.md                       (we'll create)
+├── SDLC.md                         (we'll create)
+└── TESTING.md                      (we'll create)
+```
+
+---
+
+## Step 3: Create settings.json
+
+Create `.claude/settings.json`:
+
+```json
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/sdlc-prompt-check.sh"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/tdd-pretool-check.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+### Why These Hooks?
+
+| Hook | When It Fires | Purpose |
+|------|---------------|---------|
+| `UserPromptSubmit` | Every message you send | Baseline SDLC reminder, skill auto-invoke |
+| `PreToolUse` | Before Claude edits files | TDD check: "Did you write the test first?" |
+
+### How Skill Auto-Invoke Works
+
+The light hook outputs text that **instructs Claude** to invoke skills:
+
+```
+AUTO-INVOKE SKILLS (Claude MUST do this FIRST):
+- implement/fix/refactor/feature/bug/build → Invoke: Skill tool, skill="sdlc"
+- test/TDD/write test (standalone) → Invoke: Skill tool, skill="testing"
+```
+
+**This is text-based, not programmatic.** Claude reads this instruction and follows it. When Claude sees your message is an implementation task, it invokes the sdlc skill using the Skill tool. This loads the full SDLC guidance into context.
+
+**Why text-based works:** Claude Code's hook system allows hooks to add context that Claude reads. Claude is instructed to follow the AUTO-INVOKE rules, and it does. The skills then load detailed guidance only when needed.
+
+### Why No PostToolUse Hook?
+
+**PostToolUse fires after EVERY individual edit.** If Claude makes 10 edits, it fires 10 times.
+
+Running lint/typecheck after every edit is wasteful. Instead, lint/typecheck is a checklist step in the SDLC skill - run once after all edits, before tests.
+
+---
+
+## Step 4: Create the Light Hook
+
+Create `.claude/hooks/sdlc-prompt-check.sh`:
+
+```bash
+#!/bin/bash
+# Light SDLC hook - baseline reminder every prompt (~100 tokens)
+# Full guidance in skills: .claude/skills/sdlc/ and .claude/skills/testing/
+
+cat << 'EOF'
+SDLC BASELINE:
+1. TodoWrite FIRST (plan tasks before coding)
+2. STATE CONFIDENCE: HIGH/MEDIUM/LOW
+3. LOW confidence? ASK USER before proceeding
+4. FAILED 2x? STOP and ASK USER
+5. 🛑 ALL TESTS MUST PASS BEFORE COMMIT - NO EXCEPTIONS
+
+AUTO-INVOKE SKILLS (Claude MUST do this FIRST):
+- implement/fix/refactor/feature/bug/build → Invoke: Skill tool, skill="sdlc"
+- test/TDD/write test (standalone) → Invoke: Skill tool, skill="testing"
+- If BOTH match (e.g., "fix the test") → sdlc takes precedence (includes TDD)
+- DON'T invoke for: questions, explanations, reading/exploring code, simple queries
+- DON'T wait for user to type /sdlc - AUTO-INVOKE based on task type
+
+Workflow phases:
+1. Plan Mode (research) → Present approach + confidence
+2. Transition (update docs) → Request /compact
+3. Implementation (TDD after compact)
+4. SELF-REVIEW (code-reviewer subagent) → BEFORE presenting to user
+
+Quick refs: SDLC.md | TESTING.md | *_PLAN.md for feature
+EOF
+```
+
+**Make it executable:**
+```bash
+chmod +x .claude/hooks/sdlc-prompt-check.sh
+```
+
+---
+
+## Step 5: Create the TDD Hook
+
+Create `.claude/hooks/tdd-pretool-check.sh`:
+
+```bash
+#!/bin/bash
+# PreToolUse hook - TDD enforcement before editing source files
+# Fires before Write/Edit/MultiEdit tools
+
+# Read the tool input (JSON with file_path, content, etc.)
+TOOL_INPUT=$(cat)
+
+# Extract the file path being edited (requires jq)
+FILE_PATH=$(echo "$TOOL_INPUT" | jq -r '.tool_input.file_path // empty')
+
+# CUSTOMIZE: Change this pattern to match YOUR source directory
+# Examples: "/src/", "/app/", "/lib/", "/packages/", "/server/"
+if [[ "$FILE_PATH" == *"/src/"* ]]; then
+  # Output additionalContext that Claude will read
+  cat << 'EOF'
+{"hookSpecificOutput": {"hookEventName": "PreToolUse", "additionalContext": "TDD CHECK: Are you writing IMPLEMENTATION before a FAILING TEST? If yes, STOP. Write the test first (TDD RED), then implement (TDD GREEN)."}}
+EOF
+fi
+
+# No output = allow the tool to proceed
+```
+
+**CUSTOMIZE:**
+1. Replace `"/src/"` with your source directory pattern
+2. Ensure `jq` is installed (or adapt to your preferred JSON parser)
+
+**Make it executable:**
+```bash
+chmod +x .claude/hooks/tdd-pretool-check.sh
+```
+
+**Alternative implementations:** You can write this hook in any language. The hook receives JSON on stdin and outputs JSON. See Claude Code docs for hook input/output format.
+
+---
+
+## Step 6: Create SDLC Skill
+
+Create `.claude/skills/sdlc/SKILL.md`:
+
+````markdown
+---
+name: sdlc
+description: Full SDLC workflow for implementing features, fixing bugs, refactoring code, and creating new functionality. Use this skill when implementing, fixing, refactoring, adding features, or building new code.
+---
+# SDLC Skill - Full Development Workflow
+
+## Full SDLC Checklist
+
+Your FIRST action must be TodoWrite with these steps:
+
+```
+TodoWrite([
+  // PLANNING PHASE (Plan Mode for non-trivial tasks)
+  { content: "Find and read relevant documentation", status: "in_progress", activeForm: "Reading docs" },
+  { content: "Assess doc health - flag issues (ask before cleaning)", status: "pending", activeForm: "Checking doc health" },
+  { content: "DRY scan: What patterns exist to reuse?", status: "pending", activeForm: "Scanning for reusable patterns" },
+  { content: "Blast radius: What depends on code I'm changing?", status: "pending", activeForm: "Checking dependencies" },
+  { content: "Restate task in own words - verify understanding", status: "pending", activeForm: "Verifying understanding" },
+  { content: "Present approach + STATE CONFIDENCE LEVEL", status: "pending", activeForm: "Presenting approach" },
+  { content: "Signal ready - user exits plan mode", status: "pending", activeForm: "Awaiting plan approval" },
+  // TRANSITION PHASE (After plan mode, before compact)
+  { content: "Update feature docs with discovered gotchas", status: "pending", activeForm: "Updating feature docs" },
+  { content: "Request /compact before TDD", status: "pending", activeForm: "Requesting compact" },
+  // IMPLEMENTATION PHASE (After compact)
+  { content: "TDD RED: Write failing test FIRST", status: "pending", activeForm: "Writing failing test" },
+  { content: "TDD GREEN: Implement, verify test passes", status: "pending", activeForm: "Implementing feature" },
+  { content: "Run lint/typecheck", status: "pending", activeForm: "Running lint and typecheck" },
+  { content: "Run ALL tests", status: "pending", activeForm: "Running all tests" },
+  { content: "Production build check", status: "pending", activeForm: "Verifying production build" },
+  // REVIEW PHASE
+  { content: "DRY check: Is logic duplicated elsewhere?", status: "pending", activeForm: "Checking for duplication" },
+  { content: "Self-review: code-reviewer subagent", status: "pending", activeForm: "Running code review" },
+  { content: "Security review (if warranted)", status: "pending", activeForm: "Checking security implications" },
+  { content: "Present summary: changes, DRY, concerns", status: "pending", activeForm: "Presenting code summary" }
+])
+```
+
+## Plan Mode Integration
+
+**Use plan mode for:** Multi-file changes, new features, LOW confidence, bugs needing investigation.
+
+**Workflow:**
+1. **Plan Mode** (editing blocked): Research → Write plan file → Present approach + confidence
+2. **Transition** (after approval): Update feature docs → Request /compact
+3. **Implementation** (after compact): TDD RED → GREEN → PASS
+
+**Before TDD, MUST ask:** "Docs updated. Run `/compact` before implementation?"
+
+## Confidence Check (REQUIRED)
+
+Before presenting approach, STATE your confidence:
+
+| Level | Meaning | Action |
+|-------|---------|--------|
+| HIGH (90%+) | Know exactly what to do | Present approach, proceed after approval |
+| MEDIUM (60-89%) | Solid approach, some uncertainty | Present approach, highlight uncertainties |
+| LOW (<60%) | Not sure | ASK USER before proceeding |
+| FAILED 2x | Something's wrong | STOP. ASK USER immediately |
+| CONFUSED | Can't diagnose why something is failing | STOP. Describe what you tried, ask for help |
+
+## Self-Review Loop (CRITICAL)
+
+```
+PLANNING → DOCS → TDD RED → TDD GREEN → Tests Pass → Self-Review
+    ↑                                                      │
+    │                                                      ↓
+    │                                            Issues found?
+    │                                            ├── NO → Present to user
+    │                                            └── YES ↓
+    └────────────────────────────────────────────── Ask user: fix in new plan?
+```
+
+**The loop goes back to PLANNING, not TDD RED.** When self-review finds issues:
+1. Ask user: "Found issues. Want to create a plan to fix?"
+2. If yes → back to PLANNING phase with new plan doc
+3. Then → docs update → TDD → review (proper SDLC loop)
+
+**How to self-review:**
+1. Use Task tool with `subagent_type="general-purpose"` as code-reviewer
+2. Provide context: the diff, ARCHITECTURE.md, relevant feature docs
+3. Ask it to review for quality, DRY, consistency, and domain-specific patterns
+4. If low confidence on a pattern, search for 2026 best practices and weigh against your repo
+5. Address issues by going back through the proper SDLC loop
+
+## Scope Guard (Stay in Your Lane)
+
+**Only make changes directly related to the task.**
+
+If you notice something else that should be fixed:
+- ✅ NOTE it in your summary ("I noticed X could be improved")
+- ❌ DON'T fix it unless asked
+
+**Why this matters:** AI agents can drift into "helpful" changes that weren't requested. This creates unexpected diffs, breaks unrelated things, and makes code review harder.
+
+## Test Failure Recovery (SDET Philosophy)
+
+**🛑 ALL TESTS MUST PASS BEFORE COMMIT**
+
+**Treat test code like app code.** Test failures are bugs. Investigate them the way a 15-year SDET would - with thought and care, not by brushing them aside.
+
+If tests fail:
+1. Identify which test(s) failed
+2. Diagnose WHY - this is the important part:
+   - Your code broke it? Fix your code (regression)
+   - Test is for deleted code? Delete the test
+   - Test has wrong assertions? Fix the test
+   - Test is "flaky"? Investigate - flakiness is just another word for bug
+3. Fix appropriately (fix code, fix test, or delete dead test)
+4. Run specific test individually first
+5. Then run ALL tests
+6. Still failing? ASK USER - don't spin your wheels
+
+**Flaky tests are bugs, not mysteries:**
+- Sometimes the bug is in app code (race condition, timing issue)
+- Sometimes the bug is in test code (shared state, not parallel-safe)
+- Sometimes the bug is in test environment (cleanup not proper)
+
+Debug it. Find root cause. Fix it properly. Tests ARE code.
+
+## DRY Principle
+
+**Before coding:** "What patterns exist I can reuse?"
+**After coding:** "Did I accidentally duplicate anything?"
+
+## DELETE Legacy Code
+
+- Legacy code? DELETE IT
+- Backwards compatibility? NO - DELETE IT
+- "Just in case" fallbacks? DELETE IT
+
+**THE RULE:** Delete old code first. If it breaks, fix it properly.
+
+---
+
+**Full reference:** SDLC.md
+````
+
+---
+
+## Step 7: Create Testing Skill
+
+Create `.claude/skills/testing/SKILL.md`:
+
+````markdown
+---
+name: testing
+description: TDD and testing philosophy for writing tests, test-driven development, integration tests, and unit tests. Use this skill when writing tests, doing TDD, or debugging test issues.
+---
+# Testing Skill - TDD & Testing Philosophy
+
+## Testing Diamond (CRITICAL)
+
+```
+    /\         ← Few E2E (automated or manual sign-off at end)
+   /  \
+  /    \
+ /------\
+|        |     ← MANY Integration (real DB, real cache - BEST BANG FOR BUCK)
+|        |
+ \------/
+  \    /
+   \  /
+    \/         ← Few Unit (pure logic only)
+```
+
+**Why Integration Tests are Best Bang for Buck:**
+- **Speed**: Fast enough to run on every change
+- **Stability**: Touch real code, not mocks that lie
+- **Confidence**: If they pass, production usually works
+- **Real bugs**: Integration tests with real DB catch real bugs
+- Unit tests with mocks can "pass" while production fails
+
+## Minimal Mocking Philosophy
+
+| What | Mock? | Why |
+|------|-------|-----|
+| Database | ❌ NEVER | Use test DB or in-memory |
+| Cache | ❌ NEVER | Use isolated test instance |
+| External APIs | ✅ YES | Real calls = flaky + expensive |
+| Time/Date | ✅ YES | Determinism |
+
+**Mocks MUST come from REAL captured data:**
+- Capture real API response
+- Save to your fixtures directory (Claude will discover where yours is, e.g., `tests/fixtures/`, `test-data/`, etc.)
+- Import in tests
+- Never guess mock shapes!
+
+## TDD Tests Must PROVE
+
+| Phase | What It Proves |
+|-------|----------------|
+| RED | Test FAILS → Bug exists or feature missing |
+| GREEN | Test PASSES → Fix works or feature implemented |
+| Forever | Regression protection |
+
+**WRONG approach:**
+```
+// ❌ Writing test that passes with current (buggy) code
+assert currentBuggyBehavior == currentBuggyBehavior  // pseudocode
+```
+
+**CORRECT approach:**
+```
+// ✅ Writing test that FAILS with buggy code, PASSES with fix
+assert result.status == 'success'   // pseudocode - adapt to your framework
+assert result.data != null
+```
+
+## Unit Tests = Pure Logic ONLY
+
+A function qualifies for unit testing ONLY if:
+- ✅ No database calls
+- ✅ No external API calls
+- ✅ No file system access
+- ✅ No cache calls
+- ✅ Input → Output transformation only
+
+Everything else needs integration tests.
+
+## When Stuck on Tests
+
+1. Add console.logs → Check output
+2. Run single test in isolation
+3. Check fixtures match real API
+4. **STILL stuck?** ASK USER
+
+---
+
+**Full reference:** TESTING.md
+````
+
+---
+
+## Step 8: Create CLAUDE.md
+
+Create `CLAUDE.md` in your project root. This is your project-specific configuration:
+
+```markdown
+# [Your Project Name] - Development Guidelines
+
+## TDD ENFORCEMENT (READ BEFORE CODING!)
+
+**STOP! Before writing ANY implementation code:**
+
+1. **Write failing tests FIRST** (TDD RED phase)
+2. **Use integration tests** primarily - see TESTING.md
+3. **Use REAL fixtures** for mock data - never guess API shapes
+
+## Commands
+
+<!-- CUSTOMIZE: Replace with your actual commands from Q4-Q8 -->
+
+- Build: `[your build command]`
+- Run dev: `[your dev command]`
+- Lint: `[your lint command]`
+- Typecheck: `[your typecheck command]`
+- Run all tests: `[your test command]`
+- Run specific test: `[your specific test command]`
+
+## Code Style
+
+<!-- CUSTOMIZE: Add your code style rules -->
+
+- [Your indentation: tabs or spaces?]
+- [Your quote style: single or double?]
+- [Semicolons: yes or no?]
+- Use strict TypeScript
+- Prefer const over let
+
+## Architecture
+
+<!-- CUSTOMIZE: Brief overview of your project -->
+
+- Commands/routes live in: [where?]
+- Core logic lives in: [where?]
+- Database: [what?]
+- Cache: [what?]
+
+## Git Commits
+
+- Follow conventional commits: `type(scope): description`
+- NEVER commit with failing tests
+
+## Plan Docs
+
+- Before coding a feature: READ its `*_PLAN.md` file
+- After completing work: UPDATE the plan doc
+
+## Testing Notes
+
+<!-- CUSTOMIZE: Any project-specific testing notes -->
+
+- Test timeout: [how long?]
+- Special considerations: [any?]
+```
+
+---
+
+## Step 9: Create SDLC.md, TESTING.md, and ARCHITECTURE.md
+
+These are your full reference docs. Start with stubs and expand over time:
+
+**ARCHITECTURE.md (IMPORTANT - Dev & Prod Environments):**
+```markdown
+# Architecture
+
+## How to Run This Project
+
+### Development
+```bash
+# Start dev server
+[your dev command, e.g., npm run dev]
+
+# Run with hot reload
+[your hot reload command]
+
+# Database (dev)
+[how to start/connect to dev DB]
+
+# Other services (Redis, etc.)
+[how to start dev dependencies]
+```
+
+### Production
+```bash
+# Build for production
+[your build command]
+
+# Start production server
+[your prod start command]
+
+# Database (prod)
+[connection info or how to access]
+
+# Deployment
+[how to deploy: e.g., ./deploy.sh, git push heroku, etc.]
+```
+
+## System Overview
+
+[Brief description of components and how they connect]
+
+## Key Services
+
+| Service | Purpose | Port |
+|---------|---------|------|
+| [API] | [What it does] | [3000] |
+| [DB] | [What it does] | [5432] |
+
+## Gotchas
+
+<!-- Add environment-specific gotchas as you discover them -->
+```
+
+**Why ARCHITECTURE.md matters:** Claude needs to know how to run your app in dev vs prod. Without this, Claude will ask "how do I start the server?" every time. Put it here once, never answer again.
+
+**If you already have one:** Claude will scan for existing ARCHITECTURE.md, README.md, or similar and merge/reference it.
+
+---
+
+**SDLC.md:**
+```markdown
+# SDLC - Development Workflow
+
+See `.claude/skills/sdlc/SKILL.md` for the enforced checklist.
+
+## Workflow Overview
+
+1. **Planning Mode** → Research, present approach, get approval
+2. **Transition** → Update docs, /compact
+3. **Implementation** → TDD RED → GREEN → PASS
+4. **Review** → Self-review, present summary
+
+## Lessons Learned
+
+<!-- Add gotchas as you discover them -->
+```
+
+**TESTING.md:**
+```markdown
+# Testing Guidelines
+
+See `.claude/skills/testing/SKILL.md` for TDD philosophy.
+
+## Test Commands
+
+- All tests: `[your command]`
+- Specific test: `[your command]`
+
+## Fixtures
+
+Location: `[Claude will discover or ask - e.g., tests/fixtures/, test-data/]`
+
+## Lessons Learned
+
+<!-- Add testing gotchas as you discover them -->
+```
+
+---
+
+## Step 10: Verify Setup (Claude Does This Automatically)
+
+**After creating all files, Claude automatically verifies the setup:**
+
+```
+Claude runs these checks:
+1. ✓ Hooks are executable (chmod +x applied)
+2. ✓ settings.json is valid JSON
+3. ✓ Skill frontmatter has correct name/description
+4. ✓ All required files exist
+5. ✓ Directory structure is correct
+
+Verification Results:
+├── .claude/hooks/sdlc-prompt-check.sh    ✓ executable
+├── .claude/hooks/tdd-pretool-check.sh    ✓ executable
+├── .claude/settings.json                  ✓ valid JSON
+├── .claude/skills/sdlc/SKILL.md          ✓ frontmatter OK
+├── .claude/skills/testing/SKILL.md       ✓ frontmatter OK
+├── CLAUDE.md                              ✓ exists
+├── SDLC.md                                ✓ exists
+└── TESTING.md                             ✓ exists
+
+All checks passed! Setup complete.
+```
+
+**If any check fails:** Claude fixes it automatically or tells you what's wrong.
+
+**You don't need to verify manually** - Claude handles this as the final step of wizard execution.
+
+---
+
+## Step 11: Restart and Verify
+
+**Restart Claude Code to load the new hooks/skills:**
+
+1. Exit this session, start a new one
+2. Send any message (even just "hi")
+3. You should see "SDLC BASELINE" in the response
+
+**Test the system:**
+
+| Test | Expected Result |
+|------|-----------------|
+| "What files handle auth?" | Answers without invoking skills |
+| "Add a logout button" | Auto-invokes sdlc skill, uses TodoWrite |
+| "Write tests for login" | Auto-invokes testing skill |
+
+**What happens automatically:**
+
+| You Do | System Does |
+|--------|-------------|
+| Ask to implement something | SDLC skill auto-invokes, TodoWrite starts |
+| Ask to write tests | Testing skill auto-invokes |
+| Claude tries to edit code | TDD reminder fires |
+| Task completes | Compliance check runs |
+
+**You do NOT need to:** Type `/sdlc` manually, remember all steps, or enforce the process yourself.
+
+**If not working:** Ask Claude to check:
+- Is `.claude/settings.json` valid JSON?
+- Are hooks executable? (`chmod +x .claude/hooks/*.sh`)
+- Is the hook path correct?
+
+---
+
+## Step 12: The Workflow
+
+**Planning Mode** (use for non-trivial tasks):
+
+1. Claude researches codebase, reads relevant docs
+2. Claude presents approach with **confidence level**
+3. You approve or adjust
+4. Claude updates docs with discoveries
+5. Claude asks: "Run `/compact` before implementation?"
+6. You run `/compact` to free context
+7. Claude implements with TDD
+
+**When Claude should ask you:**
+- LOW confidence → Must ask before proceeding
+- FAILED 2x → Must stop and ask
+- Multiple valid approaches → Should present options
+
+---
+
+## Quick Reference Card
+
+### Workflow Phases
+
+| Phase | What Happens | Key Action |
+|-------|--------------|------------|
+| **Planning** | Research, design approach | State confidence |
+| **Transition** | Update docs | Request /compact |
+| **Implementation** | TDD RED → GREEN → PASS | All tests pass |
+| **Review** | Self-review, summary | Present to user |
+
+### Confidence Levels
+
+| Level | Claude Action |
+|-------|---------------|
+| HIGH (90%+) | Proceed after approval |
+| MEDIUM (60-89%) | Highlight uncertainties |
+| LOW (<60%) | **ASK USER first** |
+| FAILED 2x | **STOP and ASK** |
+
+### Hook Summary
+
+| Hook | Fires | Purpose |
+|------|-------|---------|
+| UserPromptSubmit | Every prompt | SDLC baseline + skill trigger |
+| PreToolUse | Before file edits | TDD reminder |
+
+### Key Commands
+
+| Action | Command |
+|--------|---------|
+| Free context after planning | `/compact` |
+| Enter planning mode | Claude suggests or `/plan` |
+| Run specific skill | `/sdlc` or `/testing` |
+
+---
+
+## Troubleshooting
+
+### Hook Not Firing
+
+```bash
+# Check hook is executable
+chmod +x .claude/hooks/sdlc-prompt-check.sh
+
+# Test hook manually
+./.claude/hooks/sdlc-prompt-check.sh
+# Should output SDLC BASELINE text
+```
+
+### Skills Not Loading
+
+1. Check skill frontmatter has `name:` matching directory
+2. Check description matches trigger words in hook
+3. Verify Claude is recognizing implementation tasks
+
+---
+
+## Success Criteria
+
+You've successfully set up the system when:
+
+- [ ] Light hook fires every prompt (you see SDLC BASELINE in responses)
+- [ ] Claude auto-invokes sdlc skill for implementation tasks
+- [ ] Claude auto-invokes testing skill for test tasks
+- [ ] Claude uses TodoWrite to track progress
+- [ ] Claude states confidence levels
+- [ ] Claude asks for clarification when LOW confidence
+- [ ] TDD hook reminds about tests before editing source files
+- [ ] Claude requests /compact before implementation
+
+---
+
+## End of Task: Compliance and Mini-Retro
+
+**Compliance check** (Claude does this after each task):
+- TodoWrite used? Confidence stated? TDD followed? Tests pass? Self-review done?
+- If something was skipped: note what and why (intentional vs oversight)
+
+**Mini-retro** (optional, for meaningful tasks only):
+
+**This is for AI learning, not human.** The retro helps Claude identify:
+- What it struggled with and why
+- Whether it needs more research in certain areas
+- Whether bad/legacy code is causing low confidence (indicator of problem area)
+
+```
+- Improve: [something that could be better]
+- Stop: [something that added friction]
+- Start: [something that worked well]
+
+What I struggled with: [area where confidence was low]
+Suggested doc updates: [if any]
+Want me to file these? (yes/no/not now)
+```
+
+**When to do mini-retro:** After features, tricky bugs, or discovering gotchas. Skip for one-line fixes or questions.
+
+**The SDLC evolves:** Claude proposes improvements, human approves. The system gets better over time.
+
+**If docs are causing problems:** Sometimes Claude struggles in an area because the docs are bad, legacy, or confusing - just like a human would. Low confidence in an area can indicate the docs need attention.
+
+---
+
+## Going Further
+
+### Create Feature Plan Docs
+
+For each major feature, create `FEATURE_NAME_PLAN.md`:
+
+```markdown
+# Feature Name
+
+## Overview
+What is this feature? What problem does it solve?
+
+## Architecture
+How does it work? Components, data flow.
+
+## Gotchas
+Things that can trip you up.
+
+## Future Work
+What's planned but not done.
+```
+
+Claude will read these during planning and update them with discoveries.
+
+### Expand TESTING.md
+
+As you discover testing gotchas, add them:
+
+```markdown
+## Lessons Learned
+
+### [Date] - Description
+**Problem:** What went wrong
+**Solution:** How to fix it
+**Prevention:** How to avoid it
+```
+
+### Customize Skills
+
+Add project-specific guidance to skills:
+
+- Domain-specific patterns
+- Common gotchas
+- Preferred patterns
+- Architecture decisions
+
+---
+
+## User Understanding and Periodic Feedback
+
+**During wizard setup and ongoing use:**
+
+### Make Sure User Understands the Process
+
+At key points, Claude should check:
+- "Does this workflow make sense to you?"
+- "Any parts you'd like to customize or skip?"
+- "Questions about how this works?"
+
+**The goal:** User should never be confused about what's happening or why. If they are, stop and clarify.
+
+### This is a Growing Document
+
+Remind users:
+- The SDLC is customizable to their needs
+- They can try something and change it later
+- It's built into the system to evolve over time
+- Their feedback makes the process better
+
+### Periodic Check-ins (Minimal, Non-Invasive)
+
+Occasionally (not every task), Claude can ask:
+- "Is the SDLC working well for you? Anything causing friction?"
+- "Any parts of the process you want to adjust?"
+
+**Keep it minimal.** This is meant to improve the process, not add overhead. If the user seems frustrated or doesn't need it, skip it.
+
+### When Claude Gets Lost
+
+If Claude repeatedly struggles in a codebase area:
+- Low confidence is an indicator of a problem
+- Might be legacy code, bad docs, or just unfamiliar patterns
+- Claude should ask questions rather than guess wrong
+- Better to ask and be right than to assume and create rework
+
+**Don't be afraid to ask questions.** It prevents being wrong. This is a symbiotic relationship - the more interaction, the better both sides get.
+
+---
+
+## Staying Updated (KISS Approach)
+
+**No hooks. No config. Just Claude being helpful.**
+
+### How Updates Work
+
+Occasionally (monthly-ish), Claude may ask:
+> "Want me to check if the SDLC wizard has updates?"
+
+**If yes:** Claude uses WebSearch to fetch the latest wizard from GitHub, compares with your local copy, and reports any differences.
+
+**If no:** "Got it, I'll ask again sometime."
+
+**If never:** Claude stores your preference and never asks again. (Probably with an Ike joke as an apology.)
+
+### Why This Approach?
+
+- Uses Claude Code's built-in WebSearch - zero infrastructure
+- Agentic and natural - Claude just asks
+- You control when/if to update
+- KISS: no hooks, no config files, no GitHub Actions
+
+### Manual Check
+
+You can always ask Claude directly:
+> "Check if the SDLC wizard has updates"
+
+Claude will fetch `https://raw.githubusercontent.com/stefa-n/sdlc-wizard/main/CLAUDE_CODE_SDLC_WIZARD.md` and compare.
+
+---
+
+## Philosophy: Lightweight and Self-Deprecating
+
+### Understanding This Philosophy (Read This!)
+
+**Why does this SDLC exist?**
+
+Right now, Claude Code recommends building your own "agentic loop" - a workflow that guides Claude through planning, implementing, testing, and reviewing. That's exactly what this SDLC is. We're not fighting Claude Code; we're doing what they recommend.
+
+**But here's the key insight:** Claude Code is actively improving. Features we built manually today may become built-in tomorrow. When that happens, we should **delete our version and use theirs**.
+
+**Think of this SDLC as scaffolding, not architecture.** Scaffolding is meant to come down once the building is complete. Every hook, skill, and check we've added should be viewed as temporary - useful today, potentially redundant tomorrow.
+
+### Why Lightweight Matters
+
+**Claude Code gets better constantly.** This SDLC system should be minimal because:
+
+1. **Token efficiency** - Every token of context we use is a token not available for actual work
+2. **Cognitive load** - Simpler systems are easier for both humans and AI to follow
+3. **Future-proof** - Less code = less to remove when Claude Code improves
+4. **Anti-bloat** - Complexity compounds; simplicity scales
+
+**The temptation:** Add more features, more checks, more enforcement.
+**The discipline:** Only add what's essential. Question everything.
+
+### Goal: Obsolescence
+
+**One day this file shouldn't be needed.** Claude Code is actively developing features that may replace what we've built here. That's the goal - not to build an empire, but to bridge a gap.
+
+**Current alignment:** Claude Code recommends building your own "loop" - which is exactly what this SDLC is. We're aligned with their best practices, not fighting them.
+
+**Signs of success:** When you can delete a hook because Claude Code added equivalent functionality, that's a win. When this wizard shrinks rather than grows, that's progress.
+
+### Stay Up-to-Date with Claude Code
+
+**Periodically check Claude Code documentation** to ensure:
+
+1. **We're not stepping on their toes** - If Claude Code adds a feature, use theirs
+2. **We're using latest capabilities** - Skills, hooks, new features as they release
+3. **We remove redundant code** - If something becomes built-in, delete our version
+
+### When to Remove Parts of This SDLC
+
+Remove our implementation when Claude Code provides equivalent:
+
+| If Claude Code Adds... | Remove Our... |
+|------------------------|---------------|
+| Built-in TDD enforcement | `tdd-pretool-check.sh` |
+| Built-in confidence tracking | Confidence level guidance |
+| Built-in task tracking | TodoWrite reminders |
+| Built-in self-review | Self-review loop |
+
+**The rule:** Always prefer Claude Code's built-in features over our custom implementation.
+
+### Tailored to Your Project (Bespoke, Not Off-the-Rack)
+
+**This SDLC should fit your project like a tailored tuxedo, not a one-size-fits-all t-shirt.**
+
+The wizard provides a starting point, but the real value comes from organic refinement:
+
+- **Your patterns** - What naming conventions, file structures, and idioms does YOUR codebase use?
+- **Your gotchas** - What traps exist in YOUR system that Claude should know about?
+- **Your workflow** - What review process, deployment steps, and quality gates does YOUR team follow?
+
+**How tailoring happens:**
+1. Claude encounters friction or makes a mistake
+2. Claude proposes a doc update or process tweak
+3. Human approves (or adjusts)
+4. The SDLC becomes more fitted to this specific project
+
+**The goal:** After a few iterations, this SDLC should feel native to your project - not like something bolted on from outside.
+
+### This is a Living System
+
+- **Claude proposes improvements** based on friction encountered
+- **Human approves changes** to the process
+- **Both sides learn** over time
+- **The system evolves** toward simplicity, not complexity
+- **Organic growth** - shaped by actual use, not theoretical ideals
+
+---
+
+## Community Contributions (Give Back!)
+
+**This wizard belongs to the community, not any individual.**
+
+### Your Discoveries Help Everyone
+
+When you find something valuable - a gotcha, a pattern, a simplification - consider contributing it back to the wizard repo so others benefit.
+
+**Periodically, Claude may ask:**
+> "You discovered something useful here. Want to contribute this back to the wizard repo so others can benefit?"
+
+Options:
+- **Yes** - Claude helps you create a PR
+- **Not now** - Ask again another time
+- **Never** - Never ask again (stored in config, respected forever)
+
+### What Makes a Good Contribution?
+
+| Good Contributions | Not Ideal |
+|-------------------|-----------|
+| Philosophical insights | Project-specific config |
+| Generalizable patterns | Niche edge cases |
+| Simplifications | Additional complexity |
+| Battle-tested gotchas | Theoretical concerns |
+
+### The Bar: Scientific & Philosophical
+
+Keep contributions:
+- **Scientific** - Based on what works, tested in real projects
+- **Philosophical** - Explains the "why", not just the "what"
+- **Generalizable** - Helps most projects, not just yours
+
+### How to Contribute
+
+1. Fork the repo: `github.com/[REPO_URL]`
+2. Edit `CLAUDE_CODE_SDLC_WIZARD.md`
+3. Submit a PR explaining the "why"
+4. Community discusses, best ideas get merged
+
+**Decision making is community-driven.** No single person owns this wizard.
+
+---
+
+## Ike the Cat: Easter Egg Apologies
+
+**This is an EASTER EGG, not a regular feature.**
+
+If the SDLC is working well, users should NEVER be frustrated. The jokes are a rare safety valve for when things slip - not something they encounter often.
+
+**The goal:** SDLC should be smooth enough that no one needs apologies.
+
+**When frustration happens (rare):**
+1. Apologize sincerely
+2. Keep it lighthearted with an Ike joke (sweet black cat)
+3. Match THEIR humor, context, even their own words back at them (positively!)
+4. SDLC is tough - jokes keep it light
+
+**Examples (adapt to user's style AND repo context):**
+- "Sorry about that! Ike, my sweet black boy, just knocked over my coffee watching me type this. He's judging both of us."
+- "My bad! Ike says I should've asked first. He's a sweet boy but very opinionated."
+- Use their phrases back at them in a fun way
+- Reference the repo/code they're working on:
+  - (Discord bot) "Ike tried to bet on himself. The odds were not in his favor."
+  - (MMA odds) "Ike thinks he could take on a lightweight. He weighs 12 pounds."
+  - (Mass text) "Ike just sent 47 meows to everyone in my contacts."
+
+**Be quirky! Have fun with it.** Match the vibe of what they're building.
+
+**Why Ike?** Apologies should be light, not groveling. Ike keeps it friendly.
+
+**Use their name/nickname** if you know it. Makes it personal.
+
+**Mirror their communication style.** If they curse, you can curse back (friendly). If they're casual, be casual. Talk like they talk.
+
+**If they don't like jokes:** Make one joke, then never mention it again. Simple.
+
+---
+
+**You're ready!** Start a new Claude Code session and try implementing something. The system will guide Claude through the proper workflow automatically.
