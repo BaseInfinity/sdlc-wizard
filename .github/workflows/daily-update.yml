@@ -1,0 +1,180 @@
+name: Daily Claude Code Update Check
+
+on:
+  schedule:
+    - cron: '0 9 * * *'  # Daily at 9 AM UTC
+  workflow_dispatch:  # Manual trigger for testing
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  check-updates:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Read last checked version
+        id: last-version
+        run: |
+          if [ -f .github/last-checked-version.txt ]; then
+            VERSION=$(cat .github/last-checked-version.txt | tr -d '\n')
+          else
+            VERSION="v0.0.0"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Last checked version: $VERSION"
+
+      - name: Fetch latest Claude Code release
+        id: latest-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          RELEASE_JSON=$(gh api repos/anthropics/claude-code/releases/latest 2>/dev/null || echo '{"tag_name": "v0.0.0", "body": "Unable to fetch release"}')
+
+          LATEST_VERSION=$(echo "$RELEASE_JSON" | jq -r '.tag_name')
+          RELEASE_DATE=$(echo "$RELEASE_JSON" | jq -r '.published_at // "unknown"')
+          RELEASE_URL=$(echo "$RELEASE_JSON" | jq -r '.html_url // ""')
+
+          echo "latest_version=$LATEST_VERSION" >> $GITHUB_OUTPUT
+          echo "release_date=$RELEASE_DATE" >> $GITHUB_OUTPUT
+          echo "release_url=$RELEASE_URL" >> $GITHUB_OUTPUT
+
+          # Save release body to file (safer than shell variable)
+          echo "$RELEASE_JSON" | jq -r '.body' > /tmp/release_body.md
+
+          echo "Latest version: $LATEST_VERSION"
+          echo "Release date: $RELEASE_DATE"
+
+      - name: Check if update needed
+        id: check-update
+        run: |
+          LAST="${{ steps.last-version.outputs.version }}"
+          LATEST="${{ steps.latest-release.outputs.latest_version }}"
+
+          if [ "$LAST" = "$LATEST" ]; then
+            echo "No new release. Last: $LAST, Latest: $LATEST"
+            echo "needs_update=false" >> $GITHUB_OUTPUT
+          else
+            echo "New release found! $LAST -> $LATEST"
+            echo "needs_update=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Read analysis prompt
+        if: steps.check-update.outputs.needs_update == 'true'
+        id: read-prompt
+        run: |
+          # Store prompt in file to avoid shell escaping issues
+          cat .github/prompts/analyze-release.md > /tmp/analysis_prompt.md
+
+      - name: Analyze release with Claude
+        if: steps.check-update.outputs.needs_update == 'true'
+        id: analyze
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt_file: /tmp/analysis_prompt.md
+          prompt: |
+            ---
+
+            ## Release to Analyze
+
+            **Version:** ${{ steps.latest-release.outputs.latest_version }}
+            **Date:** ${{ steps.latest-release.outputs.release_date }}
+            **URL:** ${{ steps.latest-release.outputs.release_url }}
+
+            **Release Notes:**
+            (See /tmp/release_body.md)
+          direct_prompt: true
+          model: claude-sonnet-4-20250514
+
+      - name: Save analysis to file
+        if: steps.check-update.outputs.needs_update == 'true'
+        env:
+          # Use env to safely pass potentially malicious content
+          ANALYSIS_RESPONSE: ${{ steps.analyze.outputs.response }}
+        run: |
+          # Write to file via env var (safe from injection)
+          printf '%s' "$ANALYSIS_RESPONSE" > /tmp/analysis.json
+
+      - name: Parse analysis result
+        if: steps.check-update.outputs.needs_update == 'true'
+        id: parse
+        run: |
+          # Read from file (safe) instead of shell variable interpolation
+          RELEVANCE=$(jq -r '.relevance // "LOW"' /tmp/analysis.json 2>/dev/null || echo "LOW")
+          SUMMARY=$(jq -r '.summary // "Unable to parse summary"' /tmp/analysis.json 2>/dev/null || echo "Unable to parse summary")
+
+          echo "relevance=$RELEVANCE" >> $GITHUB_OUTPUT
+
+          # Safely encode summary for output (escape newlines)
+          SAFE_SUMMARY=$(echo "$SUMMARY" | tr '\n' ' ' | head -c 500)
+          echo "summary=$SAFE_SUMMARY" >> $GITHUB_OUTPUT
+
+          echo "Relevance: $RELEVANCE"
+          echo "Summary: $SAFE_SUMMARY"
+
+      - name: Update version file
+        if: steps.check-update.outputs.needs_update == 'true'
+        run: |
+          echo "${{ steps.latest-release.outputs.latest_version }}" > .github/last-checked-version.txt
+
+      - name: Build PR body
+        if: steps.check-update.outputs.needs_update == 'true' && (steps.parse.outputs.relevance == 'HIGH' || steps.parse.outputs.relevance == 'MEDIUM')
+        run: |
+          cat > /tmp/pr_body.md << 'PREOF'
+          ## Auto-Update: Claude Code ${{ steps.latest-release.outputs.latest_version }}
+
+          **Release:** ${{ steps.latest-release.outputs.latest_version }} (${{ steps.latest-release.outputs.release_date }})
+          **Confidence:** ${{ steps.parse.outputs.relevance }}
+          **Release URL:** ${{ steps.latest-release.outputs.release_url }}
+
+          ### Summary
+          PREOF
+
+          # Append summary from file (sanitized)
+          jq -r '.summary // "No summary"' /tmp/analysis.json >> /tmp/pr_body.md
+
+          cat >> /tmp/pr_body.md << 'PREOF'
+
+          ### Relevance Analysis
+          ```json
+          PREOF
+
+          cat /tmp/analysis.json >> /tmp/pr_body.md
+
+          cat >> /tmp/pr_body.md << 'PREOF'
+          ```
+
+          ### Review Checklist
+          - [ ] Aligns with KISS principle
+          - [ ] Actually needed for SDLC enforcement
+          - [ ] No over-engineering
+          - [ ] If replacing custom code, removal is clean
+
+          ---
+          *Generated by daily-update workflow*
+          PREOF
+
+      - name: Create PR for relevant updates
+        if: steps.check-update.outputs.needs_update == 'true' && (steps.parse.outputs.relevance == 'HIGH' || steps.parse.outputs.relevance == 'MEDIUM')
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore: update last-checked-version to ${{ steps.latest-release.outputs.latest_version }}"
+          title: "Auto-Update: Claude Code ${{ steps.latest-release.outputs.latest_version }}"
+          body-path: /tmp/pr_body.md
+          branch: auto-update/claude-code-${{ steps.latest-release.outputs.latest_version }}
+          delete-branch: true
+
+      - name: Commit version update (LOW relevance)
+        if: steps.check-update.outputs.needs_update == 'true' && steps.parse.outputs.relevance == 'LOW'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .github/last-checked-version.txt
+          git commit -m "chore: update last-checked-version to ${{ steps.latest-release.outputs.latest_version }} (LOW relevance, no action needed)"
+          git push

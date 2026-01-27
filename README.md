@@ -80,6 +80,15 @@ https://raw.githubusercontent.com/BaseInfinity/sdlc-wizard/main/CLAUDE_CODE_SDLC
 
 **Check for updates:** Ask Claude "Check if the SDLC wizard has updates" - Claude reads [CHANGELOG.md](CHANGELOG.md), shows what's new, and offers to apply changes (opt-in each)
 
+## Auto-Update System
+
+The wizard monitors Claude Code releases and community discussions automatically:
+
+- **Daily:** Checks official releases, creates PRs for relevant updates
+- **Weekly:** Scans community (Reddit, HN, blogs) for actionable insights
+
+All updates require human review before merging. See `.github/workflows/` for details.
+
 ## Official Plugin Integration
 
 The wizard integrates with Anthropic's official plugins:
