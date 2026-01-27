@@ -33,6 +33,7 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          use_sticky_comment: true
           prompt: |
             You are reviewing a pull request for the SDLC Wizard repository.
 
