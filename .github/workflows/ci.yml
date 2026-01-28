@@ -79,6 +79,7 @@ jobs:
           starts-with: |
             ## E2E SDLC Evaluation
             ## PR Code Review
+            **Claude finished
 
   # E2E Evaluation - only runs for bot/owner PRs
   e2e-evaluation:
