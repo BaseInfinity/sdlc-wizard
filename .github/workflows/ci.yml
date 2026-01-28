@@ -164,8 +164,15 @@ jobs:
 
           for i in 1 2 3; do
             echo "Evaluation run $i/3..."
-            RESULT=$(./tests/e2e/evaluate.sh "$SCENARIO" "$OUTPUT_FILE" --json 2>/dev/null || echo '{"score":0,"pass":false,"summary":"Evaluation failed"}')
-            SCORE=$(echo "$RESULT" | jq -r '.score // 0')
+            # Capture output and check exit code separately to avoid corrupted concatenation
+            if RESULT=$(./tests/e2e/evaluate.sh "$SCENARIO" "$OUTPUT_FILE" --json 2>&1); then
+              # Strip newlines from jq output to prevent accumulation bugs
+              SCORE=$(echo "$RESULT" | jq -r '.score // 0' | tr -d '\n')
+            else
+              echo "  Evaluation script failed, using score 0"
+              RESULT='{"score":0,"pass":false,"summary":"Evaluation failed"}'
+              SCORE="0"
+            fi
             SCORES="$SCORES $SCORE"
             LAST_RESULT="$RESULT"
             echo "  Run $i score: $SCORE"
@@ -181,22 +188,24 @@ jobs:
           echo "Scores:$SCORES -> Average: $AVG_SCORE (+/- $STD_DEV)"
 
           # Extract results from last evaluation (has criteria breakdown)
-          PASS=$(echo "$LAST_RESULT" | jq -r '.pass // false')
-          SUMMARY=$(echo "$LAST_RESULT" | jq -r '.summary // "No summary"')
-          BASELINE_STATUS=$(echo "$LAST_RESULT" | jq -r '.baseline_comparison.status // "unknown"')
-          BASELINE=$(echo "$LAST_RESULT" | jq -r '.baseline_comparison.baseline // 5.0')
+          # Strip newlines from all jq outputs to prevent GITHUB_OUTPUT corruption
+          PASS=$(echo "$LAST_RESULT" | jq -r '.pass // false' | tr -d '\n')
+          SUMMARY=$(echo "$LAST_RESULT" | jq -r '.summary // "No summary"' | tr -d '\n')
+          BASELINE_STATUS=$(echo "$LAST_RESULT" | jq -r '.baseline_comparison.status // "unknown"' | tr -d '\n')
+          BASELINE=$(echo "$LAST_RESULT" | jq -r '.baseline_comparison.baseline // 5.0' | tr -d '\n')
 
           # Format criteria for display
           CRITERIA=$(echo "$LAST_RESULT" | jq -r '.criteria | to_entries | map("- **\(.key)**: \(.value.points)/\(.value.max) - \(.value.evidence // "N/A")") | join("\n")' 2>/dev/null || echo "Could not parse criteria")
 
+          # Write to GITHUB_OUTPUT - all values already have newlines stripped
           echo "score=$AVG_SCORE" >> $GITHUB_OUTPUT
           echo "pass=$PASS" >> $GITHUB_OUTPUT
           echo "std_dev=$STD_DEV" >> $GITHUB_OUTPUT
           echo "scores=$SCORES_DISPLAY" >> $GITHUB_OUTPUT
           echo "baseline=$BASELINE" >> $GITHUB_OUTPUT
           echo "baseline_status=$BASELINE_STATUS" >> $GITHUB_OUTPUT
-          echo "cost=$COST" >> $GITHUB_OUTPUT
-          echo "turns=$NUM_TURNS" >> $GITHUB_OUTPUT
+          echo "cost=$(echo "$COST" | tr -d '\n')" >> $GITHUB_OUTPUT
+          echo "turns=$(echo "$NUM_TURNS" | tr -d '\n')" >> $GITHUB_OUTPUT
 
           # Use heredoc for multiline values
           {

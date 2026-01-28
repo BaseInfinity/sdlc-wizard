@@ -151,9 +151,15 @@ API_RESPONSE=$(curl -s https://api.anthropic.com/v1/messages \
 EVAL_RESULT=$(echo "$API_RESPONSE" | jq -r '.content[0].text // empty')
 
 if [ -z "$EVAL_RESULT" ]; then
-    echo "Error: Failed to get evaluation from Claude API"
-    echo "API Response: $API_RESPONSE"
-    exit 1
+    if [ "$JSON_OUTPUT" = "--json" ]; then
+        # Output valid JSON so CI can parse it (errors go to stderr)
+        echo '{"score":0,"pass":false,"summary":"Claude API call failed - check API key and rate limits","criteria":{},"baseline_comparison":{"status":"fail","baseline":5.0,"min_acceptable":4.0,"target":7.0}}'
+        exit 0  # Don't fail - let CI handle the zero score
+    else
+        echo "Error: Failed to get evaluation from Claude API" >&2
+        echo "API Response: $API_RESPONSE" >&2
+        exit 1
+    fi
 fi
 
 # Parse the evaluation result
