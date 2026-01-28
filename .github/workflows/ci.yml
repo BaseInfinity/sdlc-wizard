@@ -119,8 +119,9 @@ jobs:
           fi
 
           # Check if execution was successful
-          IS_ERROR=$(jq -r '.result.is_error // false' "$OUTPUT_FILE" 2>/dev/null || echo "true")
-          NUM_TURNS=$(jq -r '.result.num_turns // 0' "$OUTPUT_FILE" 2>/dev/null || echo "0")
+          # The output file may have multiple JSON objects, get the last result
+          IS_ERROR=$(jq -rs 'map(select(.type == "result")) | last | .is_error // false' "$OUTPUT_FILE" 2>/dev/null || echo "true")
+          NUM_TURNS=$(jq -rs 'map(select(.type == "result")) | last | .num_turns // 0' "$OUTPUT_FILE" 2>/dev/null || echo "0")
 
           if [ "$IS_ERROR" = "true" ]; then
             echo "Claude execution had errors"
@@ -129,8 +130,8 @@ jobs:
             echo "summary=Claude execution failed" >> $GITHUB_OUTPUT
           elif [ "$NUM_TURNS" -gt 0 ]; then
             # Claude ran successfully - check for permission denials as quality signal
-            DENIALS=$(jq -r '.result.permission_denials | length // 0' "$OUTPUT_FILE" 2>/dev/null || echo "0")
-            COST=$(jq -r '.result.total_cost_usd // 0' "$OUTPUT_FILE" 2>/dev/null || echo "0")
+            DENIALS=$(jq -rs 'map(select(.type == "result")) | last | .permission_denials | length // 0' "$OUTPUT_FILE" 2>/dev/null || echo "0")
+            COST=$(jq -rs 'map(select(.type == "result")) | last | .total_cost_usd // 0' "$OUTPUT_FILE" 2>/dev/null || echo "0")
 
             # Score based on execution quality
             # Base score of 7 if Claude ran, adjust based on denials
