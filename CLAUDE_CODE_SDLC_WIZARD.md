@@ -639,6 +639,14 @@ These are additive—they don't replace our TDD hooks.
 
 Feature branches still recommended for solo devs (keeps main clean, easy rollback).
 
+**If using PRs, also ask:**
+> "Auto-clean old bot comments on new pushes? (y/n)"
+
+- **Yes** → Add `int128/hide-comment-action` to CI (collapses outdated bot comments)
+- **No** → Skip (some teams prefer full comment history)
+
+**Recommendation:** Solo devs = yes (keeps PR tidy). Teams = ask (some want audit trail).
+
 **Check for new plugins periodically:**
 ```
 /plugin > Discover

@@ -65,6 +65,21 @@ jobs:
       - name: Validate E2E fixtures and scenarios
         run: ./tests/e2e/run-simulation.sh
 
+  # Clean up old bot comments on PR push (keeps PRs tidy)
+  cleanup-old-comments:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Resolve outdated bot comments
+        uses: int128/hide-comment-action@v1
+        with:
+          # Hide (collapse) old bot comments when new push arrives
+          # Human comments are preserved
+          authors: 'github-actions[bot]'
+          starts-with: |
+            ## E2E SDLC Evaluation
+            ## PR Code Review
+
   # E2E Evaluation - only runs for bot/owner PRs
   e2e-evaluation:
     runs-on: ubuntu-latest
@@ -75,7 +90,7 @@ jobs:
         github.event.pull_request.user.login == github.repository_owner ||
         contains(github.event.pull_request.labels.*.name, 'run-e2e')
       )
-    needs: validate
+    needs: [validate, cleanup-old-comments]
 
     steps:
       - name: Checkout
