@@ -18,6 +18,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SCENARIO_FILE="$1"
 OUTPUT_FILE="$2"
 JSON_OUTPUT="${3:-false}"
+BASELINES_FILE="$SCRIPT_DIR/baselines.json"
 
 # Colors
 RED='\033[0;31m'
@@ -157,12 +158,49 @@ fi
 
 # Parse the evaluation result
 SCORE=$(echo "$EVAL_RESULT" | jq -r '.score // 0')
-PASS=$(echo "$EVAL_RESULT" | jq -r '.pass // false')
 SUMMARY=$(echo "$EVAL_RESULT" | jq -r '.summary // "No summary"')
+
+# Get scenario name for baseline lookup
+SCENARIO_NAME=$(basename "$SCENARIO_FILE" .md)
+
+# Load baseline if available
+BASELINE="5.0"
+MIN_ACCEPTABLE="4.0"
+TARGET="7.0"
+BASELINE_STATUS="pass"
+
+if [ -f "$BASELINES_FILE" ]; then
+    BASELINE=$(jq -r --arg name "$SCENARIO_NAME" '.[$name].baseline // 5.0' "$BASELINES_FILE")
+    MIN_ACCEPTABLE=$(jq -r --arg name "$SCENARIO_NAME" '.[$name].min_acceptable // 4.0' "$BASELINES_FILE")
+    TARGET=$(jq -r --arg name "$SCENARIO_NAME" '.[$name].target // 7.0' "$BASELINES_FILE")
+fi
+
+# Determine pass/warn/fail based on baseline comparison
+# Pass: score >= baseline
+# Warn: score >= min_acceptable but < baseline
+# Fail: score < min_acceptable
+if [ "$(echo "$SCORE >= $BASELINE" | bc -l)" -eq 1 ]; then
+    PASS="true"
+    BASELINE_STATUS="pass"
+elif [ "$(echo "$SCORE >= $MIN_ACCEPTABLE" | bc -l)" -eq 1 ]; then
+    PASS="true"  # Still pass, but warn
+    BASELINE_STATUS="warn"
+else
+    PASS="false"
+    BASELINE_STATUS="fail"
+fi
 
 # Output results
 if [ "$JSON_OUTPUT" = "--json" ]; then
-    echo "$EVAL_RESULT"
+    # Enrich the result with baseline comparison
+    ENRICHED_RESULT=$(echo "$EVAL_RESULT" | jq \
+        --arg pass "$PASS" \
+        --arg baseline_status "$BASELINE_STATUS" \
+        --argjson baseline "$BASELINE" \
+        --argjson min_acceptable "$MIN_ACCEPTABLE" \
+        --argjson target "$TARGET" \
+        '. + {pass: ($pass == "true"), baseline_comparison: {status: $baseline_status, baseline: $baseline, min_acceptable: $min_acceptable, target: $target}}')
+    echo "$ENRICHED_RESULT"
 else
     echo ""
     echo "=========================================="
@@ -177,17 +215,19 @@ else
     echo "$EVAL_RESULT" | jq -r '.criteria | to_entries[] | "\(.key): \(.value.points)/\(.value.max) - \(.value.evidence)"' 2>/dev/null || echo "Could not parse criteria"
     echo ""
 
-    # Show score
+    # Show score with baseline comparison
     echo "--- Final Score ---"
     echo -e "Score: ${BLUE}$SCORE${NC} / 10"
-    echo "Pass threshold: $PASS_THRESHOLD"
+    echo "Baseline: $BASELINE | Min: $MIN_ACCEPTABLE | Target: $TARGET"
     echo ""
 
-    # Show pass/fail
-    if [ "$PASS" = "true" ]; then
-        echo -e "${GREEN}PASSED${NC} - $SUMMARY"
+    # Show pass/fail with baseline status
+    if [ "$BASELINE_STATUS" = "pass" ]; then
+        echo -e "${GREEN}PASSED${NC} (meets or exceeds baseline) - $SUMMARY"
+    elif [ "$BASELINE_STATUS" = "warn" ]; then
+        echo -e "${YELLOW}WARNING${NC} (below baseline but acceptable) - $SUMMARY"
     else
-        echo -e "${RED}FAILED${NC} - $SUMMARY"
+        echo -e "${RED}FAILED${NC} (regression detected) - $SUMMARY"
     fi
 
     # Show improvements

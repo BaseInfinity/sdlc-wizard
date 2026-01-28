@@ -111,105 +111,159 @@ jobs:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           prompt: |
-            Run an E2E SDLC simulation on the test fixtures.
+            Run an E2E SDLC simulation using scenario: tests/e2e/scenarios/medium-add-feature.md
 
-            1. Pick a scenario from tests/e2e/scenarios/
-            2. Set up a test fixture from tests/e2e/fixtures/
+            1. Read the scenario file to understand the task
+            2. Set up the test fixture from tests/e2e/fixtures/test-repo/
             3. Execute the scenario task following SDLC principles
             4. Return results as JSON with score
 
             After execution, output a summary of what you did and whether SDLC was followed.
 
-      - name: Parse E2E result
-        id: parse
+      - name: Evaluate SDLC Compliance
+        id: evaluate
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
-          # Claude output is saved to file in agent mode
           OUTPUT_FILE="/home/runner/work/_temp/claude-execution-output.json"
+          SCENARIO="tests/e2e/scenarios/medium-add-feature.md"
 
           if [ ! -f "$OUTPUT_FILE" ]; then
             echo "Error: Claude output file not found"
             echo "score=0" >> $GITHUB_OUTPUT
             echo "pass=false" >> $GITHUB_OUTPUT
             echo "summary=Claude execution output not found" >> $GITHUB_OUTPUT
+            echo "criteria=N/A" >> $GITHUB_OUTPUT
+            echo "variance=0" >> $GITHUB_OUTPUT
+            echo "baseline_status=fail" >> $GITHUB_OUTPUT
             exit 0
           fi
 
-          # Check if execution was successful
-          # The output file is a JSON array, find the result object
+          # Check if Claude execution was successful
           IS_ERROR=$(jq -r '[.[] | select(.type == "result")] | last | .is_error // false' "$OUTPUT_FILE" 2>/dev/null || echo "true")
           NUM_TURNS=$(jq -r '[.[] | select(.type == "result")] | last | .num_turns // 0' "$OUTPUT_FILE" 2>/dev/null || echo "0")
+          COST=$(jq -r '[.[] | select(.type == "result")] | last | .total_cost_usd // 0' "$OUTPUT_FILE" 2>/dev/null || echo "0")
 
-          echo "IS_ERROR=$IS_ERROR NUM_TURNS=$NUM_TURNS"
+          echo "IS_ERROR=$IS_ERROR NUM_TURNS=$NUM_TURNS COST=\$$COST"
 
-          if [ "$IS_ERROR" = "true" ]; then
-            echo "Claude execution had errors"
+          if [ "$IS_ERROR" = "true" ] || [ "$NUM_TURNS" -eq 0 ]; then
+            echo "Claude execution failed or did not run"
             echo "score=0" >> $GITHUB_OUTPUT
             echo "pass=false" >> $GITHUB_OUTPUT
             echo "summary=Claude execution failed" >> $GITHUB_OUTPUT
-          elif [ "$NUM_TURNS" -gt 0 ]; then
-            # Claude ran successfully - check for permission denials as quality signal
-            DENIALS=$(jq -r '[.[] | select(.type == "result")] | last | .permission_denials | length // 0' "$OUTPUT_FILE" 2>/dev/null || echo "0")
-            COST=$(jq -r '[.[] | select(.type == "result")] | last | .total_cost_usd // 0' "$OUTPUT_FILE" 2>/dev/null || echo "0")
-            echo "DENIALS=$DENIALS COST=\$$COST"
-
-            # Score based on execution quality
-            # In CI sandbox, permission denials are expected for bash commands
-            # Score reflects Claude's attempt to follow SDLC, not sandbox limitations
-            if [ "$DENIALS" -eq 0 ]; then
-              SCORE="9.5"
-              SUMMARY="Claude executed cleanly with no permission issues"
-            elif [ "$DENIALS" -lt 5 ]; then
-              SCORE="8.0"
-              SUMMARY="Claude executed with $DENIALS permission denials (sandbox limited)"
-            elif [ "$DENIALS" -lt 10 ]; then
-              SCORE="7.0"
-              SUMMARY="Claude executed with $DENIALS permission denials (sandbox restricted)"
-            else
-              SCORE="6.0"
-              SUMMARY="Claude had $DENIALS permission denials (excessive)"
-            fi
-
-            # Pass if score >= 7.0
-            PASS="true"  # Always pass if Claude ran - permission denials are sandbox issue
-            # Uncomment below to enforce strict threshold:
-            # if [ "$(echo "$SCORE >= 7.0" | bc)" -eq 1 ]; then PASS="true"; else PASS="false"; fi
-
-            echo "score=$SCORE" >> $GITHUB_OUTPUT
-            echo "pass=$PASS" >> $GITHUB_OUTPUT
-            echo "summary=$SUMMARY (${NUM_TURNS} turns, \$${COST})" >> $GITHUB_OUTPUT
-          else
-            echo "score=0" >> $GITHUB_OUTPUT
-            echo "pass=false" >> $GITHUB_OUTPUT
-            echo "summary=Claude did not execute properly" >> $GITHUB_OUTPUT
+            echo "criteria=N/A" >> $GITHUB_OUTPUT
+            echo "variance=0" >> $GITHUB_OUTPUT
+            echo "baseline_status=fail" >> $GITHUB_OUTPUT
+            exit 0
           fi
 
-          echo "E2E Score: $(cat $GITHUB_OUTPUT | grep score | cut -d= -f2)"
-          echo "Pass: $(cat $GITHUB_OUTPUT | grep pass | cut -d= -f2)"
+          # Run evaluation 3x for variance reduction (LLM-as-Judge is non-deterministic)
+          echo "Running SDLC evaluation 3 times for variance reduction..."
+          SCORES=""
+          LAST_RESULT=""
+
+          for i in 1 2 3; do
+            echo "Evaluation run $i/3..."
+            RESULT=$(./tests/e2e/evaluate.sh "$SCENARIO" "$OUTPUT_FILE" --json 2>/dev/null || echo '{"score":0,"pass":false,"summary":"Evaluation failed"}')
+            SCORE=$(echo "$RESULT" | jq -r '.score // 0')
+            SCORES="$SCORES $SCORE"
+            LAST_RESULT="$RESULT"
+            echo "  Run $i score: $SCORE"
+            sleep 1  # Small delay between API calls
+          done
+
+          # Calculate average and standard deviation
+          AVG_SCORE=$(echo "$SCORES" | awk '{sum=0; for(i=1;i<=NF;i++) sum+=$i; printf "%.1f", sum/NF}')
+          STD_DEV=$(echo "$SCORES" | awk -v avg="$AVG_SCORE" '{sum=0; for(i=1;i<=NF;i++) sum+=($i-avg)^2; printf "%.1f", sqrt(sum/NF)}')
+          # Trim leading space from SCORES for display
+          SCORES_DISPLAY=$(echo "$SCORES" | sed 's/^ //')
+
+          echo "Scores:$SCORES -> Average: $AVG_SCORE (+/- $STD_DEV)"
+
+          # Extract results from last evaluation (has criteria breakdown)
+          PASS=$(echo "$LAST_RESULT" | jq -r '.pass // false')
+          SUMMARY=$(echo "$LAST_RESULT" | jq -r '.summary // "No summary"')
+          BASELINE_STATUS=$(echo "$LAST_RESULT" | jq -r '.baseline_comparison.status // "unknown"')
+          BASELINE=$(echo "$LAST_RESULT" | jq -r '.baseline_comparison.baseline // 5.0')
+
+          # Format criteria for display
+          CRITERIA=$(echo "$LAST_RESULT" | jq -r '.criteria | to_entries | map("- **\(.key)**: \(.value.points)/\(.value.max) - \(.value.evidence // "N/A")") | join("\n")' 2>/dev/null || echo "Could not parse criteria")
+
+          echo "score=$AVG_SCORE" >> $GITHUB_OUTPUT
+          echo "pass=$PASS" >> $GITHUB_OUTPUT
+          echo "std_dev=$STD_DEV" >> $GITHUB_OUTPUT
+          echo "scores=$SCORES_DISPLAY" >> $GITHUB_OUTPUT
+          echo "baseline=$BASELINE" >> $GITHUB_OUTPUT
+          echo "baseline_status=$BASELINE_STATUS" >> $GITHUB_OUTPUT
+          echo "cost=$COST" >> $GITHUB_OUTPUT
+          echo "turns=$NUM_TURNS" >> $GITHUB_OUTPUT
+
+          # Use heredoc for multiline values
+          {
+            echo "summary<<EOF"
+            echo "$SUMMARY"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+
+          {
+            echo "criteria<<EOF"
+            echo "$CRITERIA"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+
+          echo "E2E Score: $AVG_SCORE (+/- $STD_DEV)"
+          echo "Baseline Status: $BASELINE_STATUS"
+          echo "Pass: $PASS"
 
       - name: Comment E2E results on PR
         uses: actions/github-script@v7
         with:
           script: |
-            const score = '${{ steps.parse.outputs.score }}';
-            const pass = '${{ steps.parse.outputs.pass }}' === 'true';
-            const summary = '${{ steps.parse.outputs.summary }}';
+            const score = '${{ steps.evaluate.outputs.score }}';
+            const pass = '${{ steps.evaluate.outputs.pass }}' === 'true';
+            const stdDev = '${{ steps.evaluate.outputs.std_dev }}';
+            const scores = '${{ steps.evaluate.outputs.scores }}';
+            const baseline = '${{ steps.evaluate.outputs.baseline }}';
+            const baselineStatus = '${{ steps.evaluate.outputs.baseline_status }}';
+            const cost = '${{ steps.evaluate.outputs.cost }}';
+            const turns = '${{ steps.evaluate.outputs.turns }}';
+            const summary = `${{ steps.evaluate.outputs.summary }}`;
+            const criteria = `${{ steps.evaluate.outputs.criteria }}`;
 
-            const emoji = pass ? ':white_check_mark:' : ':x:';
-            const status = pass ? 'PASSED' : 'FAILED';
+            let emoji, status;
+            if (baselineStatus === 'pass') {
+              emoji = ':white_check_mark:';
+              status = 'PASSED';
+            } else if (baselineStatus === 'warn') {
+              emoji = ':warning:';
+              status = 'WARNING';
+            } else {
+              emoji = ':x:';
+              status = 'FAILED';
+            }
 
-            const body = `## E2E SDLC Evaluation ${emoji}
-
-            | Metric | Value |
-            |--------|-------|
-            | **Status** | ${status} |
-            | **Score** | ${score} / 10 |
-            | **Threshold** | 7.0 |
-
-            ### Summary
-            ${summary}
-
-            ---
-            *Automated E2E evaluation by CI*`;
+            const body = [
+              `## E2E SDLC Evaluation ${emoji}`,
+              '',
+              '_Note: This measures PROCESS compliance (did Claude follow SDLC?), not output quality._',
+              '',
+              '| Metric | Value |',
+              '|--------|-------|',
+              `| Status | ${status} |`,
+              `| Score | ${score} +/- ${stdDev} / 10 |`,
+              `| Individual Runs | ${scores} |`,
+              `| Baseline | ${baseline} |`,
+              `| Cost | $${cost} (${turns} turns) |`,
+              '',
+              '### Criteria Breakdown',
+              criteria,
+              '',
+              '### Summary',
+              summary,
+              '',
+              '---',
+              '*Evaluated by [LLM-as-a-Judge](tests/e2e/evaluate.sh)*'
+            ].join('\n');
 
             github.rest.issues.createComment({
               owner: context.repo.owner,
@@ -218,9 +272,10 @@ jobs:
               body: body
             });
 
-      - name: Fail if score below threshold
-        if: steps.parse.outputs.pass != 'true'
+      - name: Fail if below minimum acceptable
+        if: steps.evaluate.outputs.pass != 'true'
         run: |
-          echo "E2E evaluation failed with score ${{ steps.parse.outputs.score }}"
-          echo "Minimum required: 7.0"
+          echo "E2E evaluation failed with score ${{ steps.evaluate.outputs.score }}"
+          echo "Baseline status: ${{ steps.evaluate.outputs.baseline_status }}"
+          echo "Minimum acceptable threshold not met"
           exit 1

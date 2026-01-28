@@ -128,3 +128,29 @@ tests/
 - Wizard philosophy - baked into analysis prompts
 - Use official when available - prompts check for plugin replacements
 - Self-evolving - system improves itself through research and feedback
+
+## Organic Improvement
+
+**Baselines evolve with you:**
+- Start conservative (D/C level, scores 4.0-6.0)
+- Raise baselines after 3 consecutive runs above current baseline
+- This is a journey, not a destination
+
+**Low scores are feedback, not failure:**
+- Score < baseline? That's information about where to improve
+- Analyze criteria breakdown to see specific gaps
+- Each PR is a data point in your improvement trend
+
+**Regression detection:**
+| Condition | Result |
+|-----------|--------|
+| `score >= baseline` | PASS - meets or exceeds expectations |
+| `score >= min_acceptable` | WARN - below baseline but acceptable |
+| `score < min_acceptable` | FAIL - regression detected |
+
+**The goal:** A virtuous cycle where the system gets better AND measures itself getting better.
+
+**Milestone targets:**
+- Start: D/C level (4.0-6.0)
+- Q2 2026: B level (7.0-8.0)
+- Q3 2026: A level (8.0-9.0)
