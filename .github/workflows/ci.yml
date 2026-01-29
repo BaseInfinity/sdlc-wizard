@@ -114,7 +114,7 @@ jobs:
           claude_args: |
             --max-turns 30
           # Allow Claude to do TDD: read/write files, run tests, git operations
-          allowed_tools: |
+          additional_permissions: |
             Bash(npm *)
             Bash(node *)
             Bash(git *)
