@@ -109,7 +109,20 @@ But it never auto-merges - you stay in control.
 | Owner PRs | Yes | Yes | Yes |
 | External PRs | Yes | Yes | No |
 
-See `.github/workflows/` for implementation details.
+### How E2E Scoring Works
+
+Like evaluating scientific method adherence - we measure **process compliance**, not outcome quality:
+
+| SDLC Step | Evidence We Look For |
+|-----------|---------------------|
+| Plan | Stated approach BEFORE coding? |
+| TDD RED | Test written BEFORE implementation? |
+| TDD GREEN | Test passes after? |
+| Self-review | Checked own work? |
+
+Scores are based on consistent criteria. Conservative baselines that rise as we improve.
+
+See `.github/workflows/` and `tests/e2e/` for implementation details.
 
 ## Official Plugin Integration
 
