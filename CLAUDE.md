@@ -23,6 +23,7 @@ This is a **meta-repository** - it contains the SDLC Wizard documentation and au
 |---------|---------|
 | `./tests/test-version-logic.sh` | Run version comparison tests |
 | `./tests/test-analysis-schema.sh` | Run schema validation tests |
+| `./tests/e2e/test-json-extraction.sh` | Run JSON extraction tests |
 | `./tests/e2e/run-simulation.sh` | Run E2E simulation (needs API key) |
 
 ## Code Style

@@ -15,6 +15,8 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/json-utils.sh"
+
 SCENARIO_FILE="$1"
 OUTPUT_FILE="$2"
 JSON_OUTPUT="${3:-false}"
@@ -148,9 +150,9 @@ API_RESPONSE=$(curl -s https://api.anthropic.com/v1/messages \
     }")
 
 # Extract the response text
-EVAL_RESULT=$(echo "$API_RESPONSE" | jq -r '.content[0].text // empty')
+RAW_RESULT=$(echo "$API_RESPONSE" | jq -r '.content[0].text // empty')
 
-if [ -z "$EVAL_RESULT" ]; then
+if [ -z "$RAW_RESULT" ]; then
     if [ "$JSON_OUTPUT" = "--json" ]; then
         # Output valid JSON so CI can parse it (errors go to stderr)
         echo '{"score":0,"pass":false,"summary":"Claude API call failed - check API key and rate limits","criteria":{},"baseline_comparison":{"status":"fail","baseline":5.0,"min_acceptable":4.0,"target":7.0}}'
@@ -158,6 +160,25 @@ if [ -z "$EVAL_RESULT" ]; then
     else
         echo "Error: Failed to get evaluation from Claude API" >&2
         echo "API Response: $API_RESPONSE" >&2
+        exit 1
+    fi
+fi
+
+# Clean Claude's response - extract JSON even if wrapped in markdown or has preamble
+# See lib/json-utils.sh for implementation details
+EVAL_RESULT=$(extract_json "$RAW_RESULT")
+
+# Validate we got valid JSON
+if ! is_valid_json "$EVAL_RESULT"; then
+    # Debug: log what Claude actually returned
+    echo "Warning: Claude returned non-JSON or malformed response" >&2
+    echo "Raw response (first 500 chars): ${RAW_RESULT:0:500}" >&2
+
+    if [ "$JSON_OUTPUT" = "--json" ]; then
+        echo '{"score":0,"pass":false,"summary":"Claude returned invalid JSON response","criteria":{},"baseline_comparison":{"status":"fail","baseline":5.0,"min_acceptable":4.0,"target":7.0}}'
+        exit 0
+    else
+        echo "Error: Could not extract valid JSON from Claude's response" >&2
         exit 1
     fi
 fi

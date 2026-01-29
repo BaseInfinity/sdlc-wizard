@@ -36,7 +36,11 @@ TodoWrite([
   { content: "DRY check: Is logic duplicated elsewhere?", status: "pending", activeForm: "Checking for duplication" },
   { content: "Self-review: code-reviewer subagent", status: "pending", activeForm: "Running code review" },
   { content: "Security review (if warranted)", status: "pending", activeForm: "Checking security implications" },
-  { content: "Present summary: changes, DRY, concerns", status: "pending", activeForm: "Presenting code summary" }
+  // CI FEEDBACK LOOP (After local tests pass)
+  { content: "Commit and push to remote", status: "pending", activeForm: "Pushing to remote" },
+  { content: "Watch CI - fix failures, iterate until green (max 2x)", status: "pending", activeForm: "Watching CI" },
+  // FINAL
+  { content: "Present summary: changes, tests, CI status", status: "pending", activeForm: "Presenting final summary" }
 ])
 ```
 
@@ -146,6 +150,40 @@ If tests fail:
 - Sometimes the bug is in test environment (cleanup not proper)
 
 Debug it. Find root cause. Fix it properly. Tests ARE code.
+
+## CI Feedback Loop (After Commit)
+
+**The SDLC doesn't end at local tests.** CI must pass too.
+
+```
+Local tests pass -> Commit -> Push -> Watch CI
+                                         |
+                              CI passes? -+-> YES -> Present for review
+                                         |
+                                         +-> NO -> Fix -> Push -> Watch CI
+                                                           |
+                                                   (max 2 attempts)
+                                                           |
+                                                   Still failing?
+                                                           |
+                                                   STOP and ASK USER
+```
+
+**How to watch CI:**
+1. Push changes to remote
+2. Check CI status (use `gh` CLI or GitHub MCP)
+3. If CI fails:
+   - Read failure logs
+   - Diagnose root cause (same as local test failures)
+   - Fix and push again
+4. Max 2 fix attempts - if still failing, ASK USER
+5. If CI passes - proceed to present final summary
+
+**CI failures follow same rules as test failures:**
+- Your code broke it? Fix your code
+- CI config issue? Fix the config
+- Flaky? Investigate - flakiness is a bug
+- Stuck? ASK USER
 
 ## DRY Principle
 
