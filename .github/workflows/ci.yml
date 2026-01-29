@@ -110,6 +110,10 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          # Give Claude enough turns to complete full SDLC cycle
+          # Default was too low - Claude was getting cut off mid-TDD
+          claude_args: |
+            --max-turns 30
           prompt: |
             Run an E2E SDLC simulation using scenario: tests/e2e/scenarios/medium-add-feature.md
 
