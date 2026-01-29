@@ -642,11 +642,27 @@ For Claude to be effective at SDLC enforcement, your project should have these d
 | Require status checks to pass | ✓ Enabled | CI must be green |
 | Require branches to be up to date | ✓ Enabled | No stale merges |
 
-**How to enable:**
+**How to enable (UI):**
 1. Go to: `Settings > Branches > Add rule`
 2. Branch name pattern: `main` (or `master`)
 3. Enable the settings above
-4. Save changes
+4. Add required status checks: `validate`, `e2e-quick-check`
+5. Save changes
+
+**How to enable (CLI):**
+```bash
+gh api repos/OWNER/REPO/branches/main/protection --method PUT --input - << 'EOF'
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": ["validate", "e2e-quick-check"]
+  },
+  "enforce_admins": false,
+  "required_pull_request_reviews": null,
+  "restrictions": null
+}
+EOF
+```
 
 **Optional but recommended:**
 
