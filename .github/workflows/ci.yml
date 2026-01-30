@@ -82,6 +82,8 @@ jobs:
           starts-with: |
             ## E2E SDLC Evaluation
             ## E2E Before/After Comparison
+            ## E2E Quick Check
+            ## E2E Full Evaluation
             ## PR Code Review
             **Claude finished
 
