@@ -56,15 +56,50 @@
 ## PR Review Workflow (`pr-review.yml`)
 
 ### What It Does
-- Triggers on PR open/update
+- Triggers on PR open, ready_for_review, or `needs-review` label
+- Waits for CI to pass before reviewing (saves API costs)
 - Uses Claude Code action for AI review
-- Comments on PR with feedback
+- Posts review as **sticky PR comment** (not inline review comments)
 
 ### Review Focus
 - SDLC compliance
 - Security considerations
 - Code quality
 - Testing coverage
+
+### Sticky Comments vs Inline Reviews
+
+| Approach | Pros | Cons |
+|----------|------|------|
+| **Inline review comments** | Threading on specific lines | Pile up, clutter PR |
+| **Sticky PR comment** | Clean, auto-updates | No line-specific threading |
+
+**We use sticky comments because:**
+- Bots shouldn't pile up review comments on every push
+- Single sticky comment replaces itself (stays clean)
+- User comments provide context, Claude responds in updated sticky
+- `hide-comment-action` handles cleanup
+
+### Back-and-Forth Review Workflow
+
+```
+1. PR opens → Claude posts sticky review comment
+2. You read the review
+3. Have questions? → Comment on the PR
+4. Add `needs-review` label → Claude re-reviews
+5. Sticky comment UPDATES with response (not a new comment)
+6. Label auto-removed → Ready for next round
+```
+
+**How to trigger re-review:**
+```bash
+gh pr edit <PR_NUMBER> --add-label needs-review
+```
+
+### Smart Features
+- **Skips trivial PRs**: Docs-only, config-only changes skip review
+- **Waits for CI**: No point reviewing broken code
+- **Label-driven re-review**: Add `needs-review` anytime for fresh review
 
 ## Testing Workflows Locally
 

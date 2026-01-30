@@ -765,6 +765,32 @@ Feature branches still recommended for solo devs (keeps main clean, easy rollbac
 
 **Recommendation:** Yes for most teams. No point reviewing code that doesn't build/pass tests. Saves Claude API costs and reviewer time.
 
+> "Use sticky PR comments or inline review comments for bot reviews? (sticky/inline)"
+
+- **Sticky** → Bot reviews post as single PR comment that updates in place
+- **Inline** → Bot creates GitHub review with inline comments on specific lines
+
+**Recommendation:** Sticky for bots. Here's why:
+
+| Approach | When to Use |
+|----------|-------------|
+| **Sticky PR comment** | Bots, automated reviews. Updates in place, stays clean. |
+| **Inline review comments** | Humans. Threading on specific lines is valuable. |
+
+**The problem with inline bot reviews:**
+- Every push triggers new review → comments pile up
+- GitHub's `hide-comment-action` only hides PR comments, not review comments
+- PR becomes cluttered with dozens of outdated bot reviews
+
+**Sticky comment workflow:**
+1. Bot posts review as sticky PR comment (single comment, auto-updates)
+2. User reads review, replies in PR comments if questions
+3. User adds `needs-review` label to trigger re-review
+4. Bot updates the SAME sticky comment (no pile-up)
+5. Label auto-removed, ready for next round
+
+**Back-and-forth:** User questions live in PR comments. Bot's response is always the latest sticky comment. Clean and organized.
+
 **Check for new plugins periodically:**
 ```
 /plugin > Discover
