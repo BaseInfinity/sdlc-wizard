@@ -9,9 +9,17 @@ permissions:
   contents: write
   pull-requests: write
 
+env:
+  # E2E test scenario for version testing
+  VERSION_SCENARIO: version-upgrade
+
 jobs:
   check-updates:
     runs-on: ubuntu-latest
+
+    outputs:
+      needs_update: ${{ steps.check-update.outputs.needs_update }}
+      latest_version: ${{ steps.latest-release.outputs.latest_version }}
 
     steps:
       - name: Checkout repository
@@ -189,3 +197,198 @@ jobs:
             auto-update
             relevance-${{ steps.parse.outputs.relevance }}
           delete-branch: true
+
+  # Version Testing: Validate SDLC enforcement with new CC version
+  version-test:
+    needs: check-updates
+    if: needs.check-updates.outputs.needs_update == 'true'
+    runs-on: ubuntu-latest
+
+    outputs:
+      phase_a_passed: ${{ steps.phase-a.outputs.passed }}
+      phase_a_score: ${{ steps.phase-a.outputs.score }}
+      phase_b_score: ${{ steps.phase-b.outputs.score }}
+      verdict: ${{ steps.verdict.outputs.verdict }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # Phase A: Regression Test
+      # Test if new CC version breaks SDLC enforcement with current docs
+      - name: Install new Claude Code version
+        run: |
+          npm install -g @anthropic-ai/claude-code@${{ needs.check-updates.outputs.latest_version }}
+          claude --version
+
+      - name: Phase A - Regression Test (Tier 1)
+        id: phase-a-tier1
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          echo "Running Phase A: Regression test with current SDLC docs"
+          echo "Testing if new CC version breaks SDLC enforcement..."
+
+          # Run single evaluation (Tier 1 - quick check)
+          RESULT=$(./tests/e2e/evaluate.sh \
+            tests/e2e/scenarios/${{ env.VERSION_SCENARIO }}.md \
+            tests/e2e/fixtures/test-repo \
+            --json 2>/dev/null || echo '{"score":0,"pass":false}')
+
+          SCORE=$(echo "$RESULT" | jq -r '.score // 0')
+          PASSED=$(echo "$RESULT" | jq -r '.pass // false')
+
+          echo "score=$SCORE" >> $GITHUB_OUTPUT
+          echo "passed=$PASSED" >> $GITHUB_OUTPUT
+          echo "Tier 1 Score: $SCORE (Passed: $PASSED)"
+
+      - name: Phase A - Regression Test (Tier 2 - Full Statistical)
+        id: phase-a
+        if: steps.phase-a-tier1.outputs.passed == 'true'
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          echo "Running Phase A Tier 2: Full statistical evaluation (5 trials)"
+
+          # Use shared evaluation script to reduce duplication
+          RESULT=$(./tests/e2e/run-tier2-evaluation.sh \
+            tests/e2e/scenarios/${{ env.VERSION_SCENARIO }}.md)
+
+          # Parse output
+          SCORES=$(echo "$RESULT" | grep '^scores=' | cut -d= -f2)
+          MEAN=$(echo "$RESULT" | grep '^score=' | cut -d= -f2)
+          CI_RESULT=$(echo "$RESULT" | grep '^ci=' | cut -d= -f2-)
+
+          echo "scores=$SCORES" >> $GITHUB_OUTPUT
+          echo "score=$MEAN" >> $GITHUB_OUTPUT
+          echo "ci=$CI_RESULT" >> $GITHUB_OUTPUT
+          echo "passed=true" >> $GITHUB_OUTPUT
+
+          echo "Phase A Complete: $CI_RESULT"
+
+      # Phase B: Improvement Test (only if Phase A passes)
+      # Test if incorporating changelog suggestions improves scores
+      - name: Apply changelog suggestions to SDLC docs
+        if: steps.phase-a.outputs.passed == 'true'
+        id: apply-suggestions
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            Analyze the changelog for Claude Code ${{ needs.check-updates.outputs.latest_version }}
+            and suggest minimal, targeted improvements to SDLC.md that would help
+            leverage any new capabilities.
+
+            Guidelines:
+            - Only suggest changes that directly improve SDLC enforcement
+            - Keep changes minimal - don't rewrite entire sections
+            - Focus on new features that help with TDD, planning, or confidence tracking
+            - If no relevant changes, output: {"no_changes": true}
+
+            Output JSON with suggested edits:
+            {
+              "no_changes": false,
+              "edits": [
+                {"file": "SDLC.md", "section": "...", "change": "..."}
+              ]
+            }
+          direct_prompt: true
+          model: claude-sonnet-4-20250514
+
+      - name: Phase B - Improvement Test (Tier 2)
+        id: phase-b
+        if: steps.phase-a.outputs.passed == 'true'
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          echo "Running Phase B: Testing with suggested SDLC improvements"
+
+          # Use shared evaluation script
+          RESULT=$(./tests/e2e/run-tier2-evaluation.sh \
+            tests/e2e/scenarios/${{ env.VERSION_SCENARIO }}.md)
+
+          SCORES=$(echo "$RESULT" | grep '^scores=' | cut -d= -f2)
+          MEAN=$(echo "$RESULT" | grep '^score=' | cut -d= -f2)
+          CI_RESULT=$(echo "$RESULT" | grep '^ci=' | cut -d= -f2-)
+
+          echo "scores=$SCORES" >> $GITHUB_OUTPUT
+          echo "score=$MEAN" >> $GITHUB_OUTPUT
+          echo "ci=$CI_RESULT" >> $GITHUB_OUTPUT
+
+          echo "Phase B Complete: $CI_RESULT"
+
+      - name: Determine verdict
+        id: verdict
+        run: |
+          source tests/e2e/lib/stats.sh
+
+          PHASE_A_SCORES="${{ steps.phase-a.outputs.scores }}"
+          PHASE_B_SCORES="${{ steps.phase-b.outputs.scores }}"
+
+          if [ -z "$PHASE_A_SCORES" ]; then
+            echo "verdict=PHASE_A_FAILED" >> $GITHUB_OUTPUT
+            echo "Verdict: Phase A failed - regression detected"
+            exit 0
+          fi
+
+          if [ -z "$PHASE_B_SCORES" ]; then
+            echo "verdict=STABLE" >> $GITHUB_OUTPUT
+            echo "Verdict: STABLE (Phase B skipped)"
+            exit 0
+          fi
+
+          # Compare Phase A vs Phase B using overlapping CI method
+          VERDICT=$(compare_ci "$PHASE_A_SCORES" "$PHASE_B_SCORES")
+          echo "verdict=$VERDICT" >> $GITHUB_OUTPUT
+          echo "Verdict: $VERDICT"
+
+      - name: Update CUSUM drift tracking
+        run: |
+          SCORE="${{ steps.phase-a.outputs.score }}"
+          if [ -n "$SCORE" ] && [ "$SCORE" != "0" ]; then
+            ./tests/e2e/cusum.sh --add "$SCORE" || true
+            ./tests/e2e/cusum.sh --status
+          fi
+
+      - name: Post version test results to PR
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: version-test
+          message: |
+            ## Version Update Test Results
+
+            **Testing:** Claude Code ${{ needs.check-updates.outputs.latest_version }}
+
+            ### Phase A: Regression Test
+            Does the new CC version break SDLC enforcement with current docs?
+
+            | Metric | Value |
+            |--------|-------|
+            | Tier 1 (Quick) | ${{ steps.phase-a-tier1.outputs.score }}/10 |
+            | Tier 2 (5 trials) | ${{ steps.phase-a.outputs.ci }} |
+            | Status | ${{ steps.phase-a.outputs.passed == 'true' && 'PASS' || 'FAIL' }} |
+
+            ### Phase B: Improvement Test
+            Do suggested changelog improvements help?
+
+            | Metric | Value |
+            |--------|-------|
+            | Score | ${{ steps.phase-b.outputs.ci }} |
+            | vs Phase A | ${{ steps.verdict.outputs.verdict }} |
+
+            ### Verdict: **${{ steps.verdict.outputs.verdict }}**
+
+            | Verdict | Meaning | Action |
+            |---------|---------|--------|
+            | IMPROVED | Changelog suggestions significantly improve scores | Merge suggested changes |
+            | STABLE | No significant difference | Safe to upgrade, changes optional |
+            | REGRESSION | Scores significantly worse | Don't merge, investigate |
+            | PHASE_A_FAILED | New CC version breaks SDLC enforcement | Don't upgrade |
+
+            ---
+            *Statistical methodology: 5 trials, 95% CI, overlapping CI comparison*

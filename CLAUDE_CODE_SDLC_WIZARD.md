@@ -45,6 +45,38 @@ This applies to:
 
 ---
 
+## Testing AI Tool Updates
+
+When your AI tools update, how do you know if the update is safe?
+
+**The Problem:**
+- AI behavior is stochastic - same prompt, different outputs
+- Single test runs can mislead (variance looks like regression)
+- "It feels slower" isn't data
+
+**The Solution: Statistical A/B Testing**
+
+| Phase | What You Test | Question |
+|-------|---------------|----------|
+| **Regression** | Old version vs new version | Did the update break anything? |
+| **Improvement** | New version vs new version + changes | Do suggested changes help? |
+
+**Statistical Rigor:**
+- Run multiple trials (5+) to account for variance
+- Use 95% confidence intervals
+- Only claim regression/improvement when CIs don't overlap
+- Overlapping CIs = no significant difference = safe
+
+This prevents both false positives (crying wolf) and false negatives (missing real regressions).
+
+**How We Apply This:**
+- Daily workflow tests new Claude Code versions before recommending upgrade
+- Phase A: Does new CC version break SDLC enforcement?
+- Phase B: Do changelog-suggested improvements actually help?
+- Results shown in PR with statistical confidence
+
+---
+
 ## Philosophy: Sensible Defaults, Smart Customization
 
 This wizard provides **opinionated defaults** optimized for AI agent workflows. You can customize, but understand what's load-bearing.

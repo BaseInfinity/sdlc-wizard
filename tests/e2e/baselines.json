@@ -35,9 +35,15 @@
     "target": 7.0,
     "description": "Complex refactoring is hardest to do with full SDLC discipline"
   },
+  "version-upgrade": {
+    "baseline": 5.0,
+    "min_acceptable": 4.0,
+    "target": 7.5,
+    "description": "SDLC enforcement validation for new Claude Code versions"
+  },
   "_meta": {
     "version": "1.0.0",
-    "last_updated": "2026-01-27",
+    "last_updated": "2026-01-31",
     "notes": [
       "Baselines are conservative (D/C level) - honest about current state",
       "Goal is to track improvement over time, not enforce unrealistic standards",

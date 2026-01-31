@@ -6,23 +6,67 @@
 
 A self-evolving system that keeps the wizard in sync with Claude Code updates and community best practices through automated research and human-approved updates.
 
+## Unified Workflow Pattern
+
+All three auto-update workflows now follow the same pattern:
+
+```
+Detect something new → Suggest changes → Test with E2E → Create PR with results
+```
+
+| Workflow | Detects | Suggests Changes To | Tests | Output |
+|----------|---------|---------------------|-------|--------|
+| **daily-update** | New CC version | N/A (Phase A) or SDLC docs (Phase B) | Regression/Improvement | PR with scores |
+| **weekly-community** | Community patterns | SDLC docs based on patterns | Do patterns improve us? | PR with scores |
+| **monthly-research** | Research trends | SDLC docs based on trends | Do trends improve us? | PR with scores |
+
+### Two-Phase Version Testing
+
+**Phase A: Regression Test** ("Did the update break us?")
+- Install new Claude Code version in CI
+- Run E2E with current SDLC wizard (unchanged)
+- Compare to stored baseline
+- STABLE or IMPROVED → Safe to upgrade
+- REGRESSION → Don't upgrade, investigate
+
+**Phase B: Improvement Test** ("Does incorporating changes help?")
+- Claude analyzes changelog → auto-applies SDLC doc changes
+- Run E2E with modified docs
+- Compare to Phase A baseline using 95% CI
+- IMPROVED → Merge suggested changes
+- STABLE → Changes neutral, merge optional
+- REGRESSION → Don't merge changes
+
+### Tier System
+
+| Tier | Runs | Statistical Power | Cost |
+|------|------|-------------------|------|
+| **Tier 1 (Quick)** | 1x | Low (directional only) | ~$0.50 |
+| **Tier 2 (Full)** | 5x | High (95% CI) | ~$2.50 |
+
+**Who Gets What:**
+- **Our auto-workflows** (daily/weekly/monthly): Tier 1 + Tier 2 always
+- **External PRs**: Tier 1 only (Tier 2 on request via `merge-ready` label)
+
 ## What's Implemented
 
 ### Daily Update Check (`.github/workflows/daily-update.yml`)
 - **Trigger:** Daily at 9 AM UTC + manual dispatch
 - **Checks:** Claude Code GitHub releases
 - **Action:** Creates PR for ALL updates (relevance shown in title)
-- **Change:** Now creates PR for all updates, not just HIGH/MEDIUM
+- **E2E Testing:** Phase A (regression) + Phase B (improvement) with Tier 1 + 2
 
 ### Weekly Community Scan (`.github/workflows/weekly-community.yml`)
 - **Trigger:** Sundays at 9 AM UTC + manual dispatch
 - **Checks:** Reddit, HN, dev blogs, official channels
 - **Action:** Creates digest issue for notable findings
+- **E2E Testing:** Baseline vs with-changes comparison (Tier 2)
 
 ### Monthly Research Deep Dive (`.github/workflows/monthly-research.yml`)
 - **Trigger:** 1st of month at 9 AM UTC + manual dispatch
 - **Checks:** Academic papers, major announcements, deep community analysis
 - **Action:** Creates issue with trend report and recommendations
+- **E2E Testing:** Baseline vs with-changes comparison (Tier 2)
 
 ### PR Code Review (`.github/workflows/pr-review.yml`)
 - **Trigger:** All PRs
@@ -82,6 +126,9 @@ A self-evolving system that keeps the wizard in sync with Claude Code updates an
 └── last-community-scan.txt   # Last community scan date
 
 tests/
+├── test-version-logic.sh     # Version comparison tests
+├── test-cusum.sh             # CUSUM drift detection tests
+├── test-analysis-schema.sh   # Analysis schema tests
 └── e2e/
     ├── fixtures/             # Sample projects for testing
     │   ├── test-repo/        # Basic JS
@@ -93,10 +140,18 @@ tests/
     ├── scenarios/            # Test scenarios
     │   ├── add-feature.md
     │   ├── fix-bug.md
-    │   └── refactor.md
+    │   ├── refactor.md
+    │   └── version-upgrade.md # Version testing scenario
+    ├── lib/
+    │   ├── stats.sh          # Statistical functions (CI, compare)
+    │   └── json-utils.sh     # JSON extraction utilities
     ├── run-simulation.sh     # Full E2E test runner
+    ├── run-tier2-evaluation.sh # Shared 5-trial evaluation script
     ├── evaluate.sh           # AI-powered scoring (0-10)
-    └── check-compliance.sh   # Pattern-based checks
+    ├── check-compliance.sh   # Pattern-based checks
+    ├── cusum.sh              # CUSUM drift detection
+    ├── score-history.txt     # Historical scores for CUSUM
+    └── baselines.json        # Baseline scores per scenario
 ```
 
 ## E2E Evaluation Flow
@@ -211,3 +266,37 @@ CI_RESULT=$(calculate_confidence_interval "5.1 5.3 5.0 5.2 5.4")
 VERDICT=$(compare_ci "$BASELINE_SCORES" "$CANDIDATE_SCORES")
 # Output: IMPROVED | STABLE | REGRESSION
 ```
+
+### CUSUM Drift Detection
+
+Before/after comparison catches sudden changes but misses gradual drift.
+CUSUM (Cumulative Sum) tracks deviation from target over time.
+
+```bash
+# Add score to history and check drift
+./tests/e2e/cusum.sh --add 6.5
+# Output: CUSUM=-1.5 (Status: NORMAL)
+
+# Check current drift status
+./tests/e2e/cusum.sh --status
+# Shows: Target, Warning/Alert thresholds, CUSUM value, Status
+```
+
+**Drift thresholds:**
+- Normal: |CUSUM| < 2.0
+- Warning: 2.0 ≤ |CUSUM| < 3.0
+- Alert: |CUSUM| ≥ 3.0
+
+**Why this matters:**
+- Individual evaluations might look "okay" (6.5 is close to 7.0)
+- But consistent small declines compound
+- CUSUM catches this before it becomes a big problem
+
+### Version Upgrade Scenario
+
+New scenario for testing SDLC enforcement with new CC versions:
+`tests/e2e/scenarios/version-upgrade.md`
+
+Used in daily-update workflow to validate that:
+1. New CC version doesn't break SDLC enforcement (Phase A)
+2. Changelog-suggested improvements help (Phase B)
