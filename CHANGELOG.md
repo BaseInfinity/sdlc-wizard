@@ -4,6 +4,8 @@ All notable changes to the SDLC Wizard.
 
 > **Note:** This changelog is for humans to read. Don't manually apply these changes - just run the wizard ("Check for SDLC wizard updates") and it handles everything automatically.
 
+<!-- Test: Validating needs-review label bypass - this is a trivial docs change -->
+
 ## [1.4.0] - 2026-01-26
 
 ### Added
