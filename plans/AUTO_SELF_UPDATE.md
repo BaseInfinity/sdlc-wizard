@@ -1,6 +1,7 @@
 # Auto Self-Update Plan
 
-> Status: IMPLEMENTED - See `.github/workflows/`
+> Status: IMPLEMENTED & VALIDATED - See `.github/workflows/`
+> Last Validated: 2026-02-02 (E2E workflow fix - proper Claude simulation before evaluation)
 
 ## Overview
 
