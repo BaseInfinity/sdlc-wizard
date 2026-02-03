@@ -133,7 +133,7 @@ jobs:
 
       - name: Record baseline simulation start time
         if: steps.check-baseline.outputs.has_baseline == 'true'
-        run: echo "BASELINE_START=$SECONDS" >> $GITHUB_ENV
+        run: echo "BASELINE_START=$(date +%s)" >> $GITHUB_ENV
 
       - name: Run BASELINE simulation with Claude
         if: steps.check-baseline.outputs.has_baseline == 'true'
@@ -161,7 +161,7 @@ jobs:
       - name: Integrity check BASELINE simulation
         if: steps.check-baseline.outputs.has_baseline == 'true'
         run: |
-          ELAPSED=$((SECONDS - BASELINE_START))
+          ELAPSED=$(($(date +%s) - BASELINE_START))
           echo "Baseline simulation took ${ELAPSED}s"
 
           # Timing check: Real Claude simulations take >30s
@@ -245,7 +245,7 @@ jobs:
           ls -la pr-branch/tests/e2e/fixtures/test-repo/.claude/ || echo "No .claude directory"
 
       - name: Record candidate simulation start time
-        run: echo "CANDIDATE_START=$SECONDS" >> $GITHUB_ENV
+        run: echo "CANDIDATE_START=$(date +%s)" >> $GITHUB_ENV
 
       - name: Run CANDIDATE simulation with Claude
         id: candidate
@@ -271,7 +271,7 @@ jobs:
 
       - name: Integrity check CANDIDATE simulation
         run: |
-          ELAPSED=$((SECONDS - CANDIDATE_START))
+          ELAPSED=$(($(date +%s) - CANDIDATE_START))
           echo "Candidate simulation took ${ELAPSED}s"
 
           # Timing check: Real Claude simulations take >30s
@@ -523,7 +523,7 @@ jobs:
 
       - name: Record baseline simulation start time (Tier 2)
         if: steps.check-baseline.outputs.has_baseline == 'true'
-        run: echo "BASELINE_START_T2=$SECONDS" >> $GITHUB_ENV
+        run: echo "BASELINE_START_T2=$(date +%s)" >> $GITHUB_ENV
 
       - name: Run BASELINE simulation with Claude
         if: steps.check-baseline.outputs.has_baseline == 'true'
@@ -551,7 +551,7 @@ jobs:
       - name: Integrity check BASELINE simulation (Tier 2)
         if: steps.check-baseline.outputs.has_baseline == 'true'
         run: |
-          ELAPSED=$((SECONDS - BASELINE_START_T2))
+          ELAPSED=$(($(date +%s) - BASELINE_START_T2))
           echo "Baseline simulation (Tier 2) took ${ELAPSED}s"
 
           # Timing check: Real Claude simulations take >30s
@@ -653,7 +653,7 @@ jobs:
           cp pr-branch/.claude/settings.json pr-branch/tests/e2e/fixtures/test-repo/.claude/ 2>/dev/null || true
 
       - name: Record candidate simulation start time (Tier 2)
-        run: echo "CANDIDATE_START_T2=$SECONDS" >> $GITHUB_ENV
+        run: echo "CANDIDATE_START_T2=$(date +%s)" >> $GITHUB_ENV
 
       - name: Run CANDIDATE simulation with Claude
         id: candidate
@@ -679,7 +679,7 @@ jobs:
 
       - name: Integrity check CANDIDATE simulation (Tier 2)
         run: |
-          ELAPSED=$((SECONDS - CANDIDATE_START_T2))
+          ELAPSED=$(($(date +%s) - CANDIDATE_START_T2))
           echo "Candidate simulation (Tier 2) took ${ELAPSED}s"
 
           # Timing check: Real Claude simulations take >30s
