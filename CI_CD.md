@@ -5,9 +5,9 @@
 | Workflow | Trigger | Purpose |
 |----------|---------|---------|
 | `ci.yml` | PR, push to main | Validation, tests, E2E evaluation |
-| `daily-update.yml` | Daily 9 AM UTC, manual | Check for Claude Code updates |
-| `weekly-community.yml` | Weekly Sunday 9 AM UTC | Scan community for patterns |
-| `monthly-research.yml` | 1st of month 9 AM UTC | Deep research and trends |
+| `daily-update.yml` | Manual only (schedule paused) | Check for Claude Code updates |
+| `weekly-community.yml` | Manual only (schedule paused) | Scan community for patterns |
+| `monthly-research.yml` | Manual only (schedule paused) | Deep research and trends |
 | `ci-autofix.yml` | CI fail / review findings | Auto-fix loop |
 | `pr-review.yml` | PR opened/ready/labeled | AI code review |
 
@@ -117,8 +117,8 @@ PR comments include resource usage (collapsed):
 Both use Tier 1 (quick) + Tier 2 (full statistical) evaluation.
 
 ### Runs On
-- Daily at 9 AM UTC (cron)
-- Manual trigger (workflow_dispatch)
+- Manual trigger only (workflow_dispatch)
+- Schedule paused until roadmap items 15-22 complete (see `plans/AUTO_SELF_UPDATE.md`)
 
 ### Required Secrets
 - `ANTHROPIC_API_KEY`: For Claude analysis
@@ -133,7 +133,8 @@ Both use Tier 1 (quick) + Tier 2 (full statistical) evaluation.
 - E2E tests community-suggested improvements (Tier 2)
 
 ### Runs On
-- Weekly on Sunday at 9 AM UTC
+- Manual trigger only (workflow_dispatch)
+- Schedule paused until roadmap items 15-22 complete
 
 ## Monthly Research Workflow (`monthly-research.yml`)
 
@@ -144,7 +145,8 @@ Both use Tier 1 (quick) + Tier 2 (full statistical) evaluation.
 - E2E tests research-suggested improvements (Tier 2)
 
 ### Runs On
-- 1st of month at 9 AM UTC
+- Manual trigger only (workflow_dispatch)
+- Schedule paused until roadmap items 15-22 complete
 
 ## CI Auto-Fix Workflow (`ci-autofix.yml`)
 

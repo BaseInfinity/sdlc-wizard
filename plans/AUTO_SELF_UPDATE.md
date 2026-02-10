@@ -52,19 +52,19 @@ Detect something new → Suggest changes → Test with E2E → Create PR with re
 ## What's Implemented
 
 ### Daily Update Check (`.github/workflows/daily-update.yml`)
-- **Trigger:** Daily at 9 AM UTC + manual dispatch
+- **Trigger:** Manual dispatch only (schedule paused until roadmap items 15-22 complete)
 - **Checks:** Claude Code GitHub releases
 - **Action:** Creates PR for ALL updates (relevance shown in title)
 - **E2E Testing:** Phase A (regression) + Phase B (improvement) with Tier 1 + 2
 
 ### Weekly Community Scan (`.github/workflows/weekly-community.yml`)
-- **Trigger:** Sundays at 9 AM UTC + manual dispatch
+- **Trigger:** Manual dispatch only (schedule paused until roadmap items 15-22 complete)
 - **Checks:** Reddit, HN, dev blogs, official channels
 - **Action:** Creates digest issue for notable findings
 - **E2E Testing:** Baseline vs with-changes comparison (Tier 2)
 
 ### Monthly Research Deep Dive (`.github/workflows/monthly-research.yml`)
-- **Trigger:** 1st of month at 9 AM UTC + manual dispatch
+- **Trigger:** Manual dispatch only (schedule paused until roadmap items 15-22 complete)
 - **Checks:** Academic papers, major announcements, deep community analysis
 - **Action:** Creates issue with trend report and recommendations
 - **E2E Testing:** Baseline vs with-changes comparison (Tier 2)
@@ -83,9 +83,9 @@ Detect something new → Suggest changes → Test with E2E → Create PR with re
 
 | Trigger | Workflow | What It Does |
 |---------|----------|--------------|
-| Daily 9AM | daily-update.yml | Check releases → Always PR |
-| Sundays | weekly-community.yml | Scan community → Issue |
-| 1st of month | monthly-research.yml | Deep research → Issue |
+| Manual only (schedule paused) | daily-update.yml | Check releases → Always PR |
+| Manual only (schedule paused) | weekly-community.yml | Scan community → Issue |
+| Manual only (schedule paused) | monthly-research.yml | Deep research → Issue |
 | On PR | ci.yml | Run tests + E2E eval |
 | On PR | pr-review.yml | AI code review |
 | On CI fail / review findings | ci-autofix.yml | Auto-fix loop |
@@ -772,6 +772,7 @@ CI runs ──► FAIL ──► ci-autofix ──► Claude fixes ──► com
 | 20 | Observability/tracing | LOW | Structured logging for debugging score changes across runs | PLANNED |
 | 21 | Mutation testing | MED | Two tracks: (a) Wizard recommendation - detect stack and offer mutation testing setup (Stryker for JS/TS, mutmut for Python, pitest for Java, cargo-mutants for Rust). (b) Our own CI - explore "SDLC document mutation testing": mutate wizard doc sections, run E2E, verify score drops to prove which sections are load-bearing. | PLANNED |
 | 22 | Color-coded PR comments | LOW | Add visual indicators to E2E scoring PR comments - green/red/yellow emoji or status badges for PASS/WARN/FAIL per criterion. Makes it easier to scan results at a glance instead of reading raw numbers. | PLANNED |
+| 23 | Phased workflow re-enablement | HIGH | Re-enable daily → weekly → monthly schedules after roadmap complete + audit. Phase 1: daily (most critical, tracks CC releases). Phase 2: weekly (after daily stable 1 week). Phase 3: monthly (lowest urgency). Gate: all items 15-22 addressed, Tier 2 E2E passes, workflow audit. | PLANNED |
 
 ### Item 15: Promptfoo/DeepEval Adoption
 

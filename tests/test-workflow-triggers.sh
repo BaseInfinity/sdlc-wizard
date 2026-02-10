@@ -74,14 +74,36 @@ test_monthly_dispatch() {
     fi
 }
 
-# Test 4: Daily workflow has schedule trigger
-test_daily_schedule() {
+# Test 4: Daily workflow does NOT have active schedule trigger (paused until roadmap items 15-22 complete)
+test_daily_no_schedule() {
     WORKFLOW="$REPO_ROOT/.github/workflows/daily-update.yml"
 
-    if grep -q "schedule:" "$WORKFLOW" && grep -q "cron:" "$WORKFLOW"; then
-        pass "Daily workflow has schedule trigger with cron"
+    if grep -q "schedule:" "$WORKFLOW"; then
+        fail "Daily workflow has active schedule trigger (should be paused)"
     else
-        fail "Daily workflow missing schedule/cron trigger"
+        pass "Daily workflow schedule is paused (manual dispatch only)"
+    fi
+}
+
+# Test 35: Weekly workflow does NOT have active schedule trigger
+test_weekly_no_schedule() {
+    WORKFLOW="$REPO_ROOT/.github/workflows/weekly-community.yml"
+
+    if grep -q "schedule:" "$WORKFLOW"; then
+        fail "Weekly workflow has active schedule trigger (should be paused)"
+    else
+        pass "Weekly workflow schedule is paused (manual dispatch only)"
+    fi
+}
+
+# Test 36: Monthly workflow does NOT have active schedule trigger
+test_monthly_no_schedule() {
+    WORKFLOW="$REPO_ROOT/.github/workflows/monthly-research.yml"
+
+    if grep -q "schedule:" "$WORKFLOW"; then
+        fail "Monthly workflow has active schedule trigger (should be paused)"
+    else
+        pass "Monthly workflow schedule is paused (manual dispatch only)"
     fi
 }
 
@@ -589,7 +611,9 @@ test_ci_max_turns_sufficient() {
 test_daily_dispatch
 test_weekly_dispatch
 test_monthly_dispatch
-test_daily_schedule
+test_daily_no_schedule
+test_weekly_no_schedule
+test_monthly_no_schedule
 test_state_file_path
 test_state_file_roundtrip
 test_workflow_permissions
