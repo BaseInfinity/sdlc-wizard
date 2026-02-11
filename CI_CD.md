@@ -40,6 +40,25 @@
 4. Statistical comparison using overlapping CI method
 5. Criteria breakdown in PR comment
 
+### Multi-Call LLM Judge (v3)
+
+The evaluation pipeline uses per-criterion API calls instead of a single monolithic prompt:
+
+| Step | What Happens |
+|------|-------------|
+| 1. Deterministic pre-checks | Grep-based scoring for task_tracking, confidence, tdd_red (free, fast) |
+| 2. Per-criterion LLM calls | Each subjective criterion (plan_mode, tdd_green, self_review, clean_code, design_system) scored independently with focused calibration examples |
+| 3. Aggregation | Individual results merged into standard JSON structure |
+| 4. Validation | Schema check, bounds clamping, deterministic merge |
+
+**Why per-criterion:** Reduces score variance. If the LLM hallucinates one score, it doesn't drag down others. Improves Tier 2 statistical power without more trials.
+
+**Cost:** 4 smaller API calls instead of 1 large one. Net tokens similar.
+
+**Golden output regression:** 3 saved outputs with verified expected score ranges catch prompt drift when the eval prompt changes.
+
+**Per-criterion CUSUM:** Tracks individual criterion drift over time. A decline in `plan_mode` won't be masked by improvement in `clean_code`.
+
 ### Tier System
 
 | Tier | Runs | Statistical Power | When |
