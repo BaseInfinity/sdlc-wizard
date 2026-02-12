@@ -859,7 +859,7 @@ jobs:
     if: |
       github.event_name == 'pull_request' &&
       contains(github.event.pull_request.labels.*.name, 'merge-ready')
-    needs: [validate, cleanup-old-comments]
+    needs: [validate]
 
     steps:
       - name: Checkout PR branch

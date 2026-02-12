@@ -890,6 +890,57 @@ test_quick_check_comment_continue_on_error
 test_quick_check_post_comment_continue_on_error
 test_fail_on_regression_no_continue_on_error
 
+# ============================================
+# Full E2E Dependency Compatibility Tests
+# ============================================
+# These tests ensure the e2e-full-evaluation job can actually run
+# when triggered by the 'labeled' event (merge-ready label).
+
+# Test 47: e2e-full-evaluation must not depend on jobs that skip on 'labeled' events
+test_full_eval_deps_run_on_labeled() {
+    WORKFLOW="$REPO_ROOT/.github/workflows/ci.yml"
+
+    if [ ! -f "$WORKFLOW" ]; then
+        fail "CI workflow file not found"
+        return
+    fi
+
+    # Parse the workflow to check that every job in e2e-full-evaluation's 'needs'
+    # does NOT have a condition that excludes 'labeled' events
+    python3 -c "
+import yaml, sys
+with open('$WORKFLOW') as f:
+    wf = yaml.safe_load(f)
+jobs = wf.get('jobs', {})
+full_eval = jobs.get('e2e-full-evaluation', {})
+needs = full_eval.get('needs', [])
+if isinstance(needs, str):
+    needs = [needs]
+
+blocked = []
+for dep in needs:
+    dep_job = jobs.get(dep, {})
+    condition = str(dep_job.get('if', ''))
+    # If the dependency skips on 'labeled' events, full-eval can never run
+    if \"event.action != 'labeled'\" in condition:
+        blocked.append(dep)
+
+if blocked:
+    print('BLOCKED_BY:' + ','.join(blocked))
+else:
+    print('DEPS_OK')
+" > /tmp/full_eval_deps.txt 2>&1
+
+    if grep -q "DEPS_OK" /tmp/full_eval_deps.txt; then
+        pass "e2e-full-evaluation dependencies all run on 'labeled' events"
+    else
+        BLOCKERS=$(grep "BLOCKED_BY:" /tmp/full_eval_deps.txt | sed 's/BLOCKED_BY://')
+        fail "e2e-full-evaluation depends on jobs that skip on 'labeled': $BLOCKERS (full eval can never run)"
+    fi
+}
+
+test_full_eval_deps_run_on_labeled
+
 echo ""
 echo "=== Results ==="
 echo "Passed: $PASSED"
