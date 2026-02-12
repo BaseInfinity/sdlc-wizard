@@ -59,6 +59,23 @@ The evaluation pipeline uses per-criterion API calls instead of a single monolit
 
 **Per-criterion CUSUM:** Tracks individual criterion drift over time. A decline in `plan_mode` won't be masked by improvement in `clean_code`.
 
+### Pairwise Tiebreaker (v3.1)
+
+When two outputs have close pointwise scores (|scoreA - scoreB| <= 1.0), a pairwise tiebreaker runs:
+
+| Step | What Happens |
+|------|-------------|
+| 1. Threshold check | If score difference > 1.0, skip pairwise — winner is clear |
+| 2. AB ordering | Holistic "which output better follows SDLC?" comparison |
+| 3. BA ordering | Same comparison with outputs swapped (position bias mitigation) |
+| 4. Verdict | Both agree = winner. Disagree = TIE (position bias detected) |
+
+**Why tiebreaker-only:** Pointwise per-criterion scoring (v3) is better for instruction-following tasks like SDLC compliance. Pairwise is only more reliable for close calls where scale drift could mislead.
+
+**Cost:** 2 extra API calls, only when triggered (rare — most score differences exceed 1.0).
+
+**Position bias mitigation:** Full swap is the standard approach — run both orderings, only count consistent wins. This catches the ~40% position bias that LLM judges exhibit.
+
 ### Tier System
 
 | Tier | Runs | Statistical Power | When |

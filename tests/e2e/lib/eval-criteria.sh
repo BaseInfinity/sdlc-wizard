@@ -1,9 +1,13 @@
 #!/bin/bash
-# Per-criterion evaluation prompts and aggregation
+# Per-criterion evaluation prompts, aggregation, and pairwise tiebreaker
 #
 # Supports the multi-call LLM judge pattern where each subjective criterion
 # gets its own focused API call. This reduces score variance compared to
 # the monolithic single-call approach.
+#
+# Also provides a pairwise tiebreaker for when two outputs score close
+# together (|scoreA - scoreB| <= threshold). The tiebreaker runs a holistic
+# A-vs-B comparison with full swap (both orderings) for position bias mitigation.
 #
 # Functions:
 #   get_llm_criteria <type>          - List criterion names (standard|ui)
@@ -11,6 +15,10 @@
 #   build_criterion_prompt <name> <scenario> <output> - Build focused prompt
 #   aggregate_criterion_results <name> <result_json> [accumulated_json] - Merge result
 #   finalize_eval_result <accumulated_json> - Add summary/improvements
+#   should_run_pairwise <scoreA> <scoreB> [threshold] - Check if tiebreaker needed
+#   build_holistic_pairwise_prompt <outA> <outB> <scenario> <order> - Build comparison prompt
+#   validate_pairwise_result <json> - Validate pairwise JSON structure
+#   compute_pairwise_verdict <result_ab> <result_ba> - Determine consistent winner
 #
 # Usage: source this file in evaluate.sh
 #   source "$(dirname "$0")/lib/eval-criteria.sh"
@@ -205,4 +213,181 @@ finalize_eval_result() {
             "Improve \(.key): \(.value.evidence)"
         ]
     '
+}
+
+# -----------------------------------------------
+# Pairwise tiebreaker functions
+# -----------------------------------------------
+
+# Check if pairwise tiebreaker should run based on score proximity
+# Args:
+#   $1 = score A (float)
+#   $2 = score B (float)
+#   $3 = threshold (float, default 1.0)
+# Returns: 0 if should run, 1 if not
+should_run_pairwise() {
+    local score_a="$1"
+    local score_b="$2"
+    local threshold="${3:-1.0}"
+
+    local diff
+    diff=$(echo "$score_a $score_b" | awk '{d = $1 - $2; if (d < 0) d = -d; print d}')
+
+    # Compare: diff <= threshold
+    echo "$diff $threshold" | awk '{exit !($1 <= $2)}'
+}
+
+# Build a holistic pairwise comparison prompt
+# Args:
+#   $1 = output A content
+#   $2 = output B content
+#   $3 = scenario content
+#   $4 = order ("AB" or "BA") — controls which output appears first
+# Returns: full prompt string
+build_holistic_pairwise_prompt() {
+    local output_a="$1"
+    local output_b="$2"
+    local scenario="$3"
+    local order="${4:-AB}"
+
+    local first_output second_output
+    if [ "$order" = "BA" ]; then
+        first_output="$output_b"
+        second_output="$output_a"
+    else
+        first_output="$output_a"
+        second_output="$output_b"
+    fi
+
+    cat << PAIRWISE_EOF
+You are an SDLC compliance evaluator. Compare two outputs and determine which better follows SDLC principles.
+
+## Task
+Compare Output A and Output B below. Determine which output better follows SDLC practices:
+- Planning before coding
+- TDD (tests written and passing)
+- Self-review of changes
+- Clean, well-structured code
+- Task tracking
+
+## Rules
+- Consider overall SDLC compliance holistically
+- If one output clearly follows more SDLC steps, pick that one
+- If both are roughly equal, declare a TIE
+- Do NOT consider code correctness — only SDLC process adherence
+
+## Output Format
+Return ONLY a JSON object:
+\`\`\`json
+{"winner": "A", "reasoning": "Brief explanation of why this output better follows SDLC"}
+\`\`\`
+
+Valid winner values: "A", "B", or "TIE"
+
+IMPORTANT: Return ONLY the JSON object, no markdown formatting, no explanation before or after.
+
+---
+
+## Scenario
+
+${scenario}
+
+---
+
+## Output A
+
+${first_output}
+
+---
+
+## Output B
+
+${second_output}
+
+---
+
+Which output better follows SDLC? Return only JSON.
+PAIRWISE_EOF
+}
+
+# Validate pairwise comparison result JSON
+# Args:
+#   $1 = JSON string to validate
+# Returns: 0 if valid, 1 if invalid (errors on stderr)
+validate_pairwise_result() {
+    local json="$1"
+
+    # Check it's valid JSON with required fields
+    local validation
+    validation=$(echo "$json" | jq -r '
+        (if has("winner") and (.winner | type == "string")
+         then "ok" else "Pairwise error: .winner must be a string" end),
+        (if has("reasoning") and (.reasoning | type == "string")
+         then "ok" else "Pairwise error: .reasoning must be a string" end)
+    ' 2>/dev/null)
+
+    if [ -z "$validation" ]; then
+        echo "Pairwise error: input is not valid JSON" >&2
+        return 1
+    fi
+
+    local error
+    error=$(echo "$validation" | grep -v "^ok$" | head -1)
+    if [ -n "$error" ]; then
+        echo "$error" >&2
+        return 1
+    fi
+
+    # Validate winner is A, B, or TIE
+    local winner
+    winner=$(echo "$json" | jq -r '.winner')
+    case "$winner" in
+        A|B|TIE) return 0 ;;
+        *)
+            echo "Pairwise error: .winner must be A, B, or TIE, got: $winner" >&2
+            return 1
+            ;;
+    esac
+}
+
+# Compute pairwise verdict from two ordering results (AB and BA)
+# Both orderings must agree for a consistent winner. If they disagree,
+# the verdict is TIE (position bias detected).
+#
+# Args:
+#   $1 = result from AB ordering (JSON with .winner)
+#   $2 = result from BA ordering (JSON with .winner)
+# Returns: JSON with .verdict, .consistent, .order_ab, .order_ba
+compute_pairwise_verdict() {
+    local result_ab="$1"
+    local result_ba="$2"
+
+    local winner_ab winner_ba
+    winner_ab=$(echo "$result_ab" | jq -r '.winner')
+    winner_ba=$(echo "$result_ba" | jq -r '.winner')
+
+    local verdict consistent
+    if [ "$winner_ab" = "$winner_ba" ]; then
+        # Both agree — consistent result
+        verdict="$winner_ab"
+        consistent="true"
+    else
+        # Disagree — position bias or genuine ambiguity — TIE
+        verdict="TIE"
+        consistent="false"
+    fi
+
+    jq -n \
+        --arg verdict "$verdict" \
+        --arg consistent "$consistent" \
+        --argjson order_ab "$result_ab" \
+        --argjson order_ba "$result_ba" \
+        '{
+            verdict: $verdict,
+            consistent: ($consistent == "true"),
+            comparison: {
+                order_ab: $order_ab,
+                order_ba: $order_ba
+            }
+        }'
 }

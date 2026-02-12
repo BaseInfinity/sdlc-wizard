@@ -775,7 +775,7 @@ CI runs ──► FAIL ──► ci-autofix ──► Claude fixes ──► com
 | # | Item | Priority | Description | Status |
 |---|------|----------|-------------|--------|
 | 15 | Eval framework improvements | HIGH | Multi-call LLM judge, golden output regression, per-criterion CUSUM | DONE |
-| 16 | Pairwise comparison | HIGH | LLM directly compares two outputs (more reliable than independent scoring) | PLANNED |
+| 16 | Pairwise tiebreaker | HIGH | Tiebreaker-only pairwise with full swap when scores within 1.0 | DONE |
 | 17 | Multi-model evaluation | MED | Test with Sonnet vs Opus to validate robustness across models | PLANNED |
 | 18 | Deterministic pre-checks | MED | Pattern match for TodoWrite/test-first before LLM judge (cheaper, faster) | DONE |
 | 19 | Real-world scenarios | MED | Extract from public repos like SWE-bench for realistic E2E testing | PLANNED |
@@ -804,17 +804,26 @@ CI runs ──► FAIL ──► ci-autofix ──► Claude fixes ──► com
 - `test-eval-prompt-regression.sh` — 8 tests for golden output validation (deterministic + API-backed)
 - `test-cusum.sh` — 17 tests (11 original + 6 new per-criterion)
 
-### Item 16: Pairwise Comparison
+### Item 16: Pairwise Tiebreaker ✅ DONE
 
-**Problem:** Independent scoring (score A, score B, compare) is less reliable than direct comparison.
+**Problem:** Independent scoring (score A, score B, compare) is less reliable than direct comparison when scores are close.
 
-**Solution:** Have Claude directly compare two outputs:
-- "Which output better follows SDLC? A or B?"
-- More reliable than scoring each independently
-- Handles scale drift (AI judges tend to cluster around certain scores)
-- Can use ELO-style ranking over multiple comparisons
+**Solution:** Lightweight tiebreaker-only pairwise comparison:
+- Only triggers when |scoreA - scoreB| <= 1.0 (configurable threshold)
+- Holistic "which output better follows SDLC?" comparison (not per-criterion)
+- Full swap: both orderings (A,B) and (B,A) evaluated — only consistent wins count
+- Binary output (A/B/TIE) — more reliable than numeric pairwise scores
+- Pointwise per-criterion scoring (Item 15) remains the primary signal
 
-**Why HIGH priority:** Direct comparison is a known-better methodology from LLM evaluation research.
+**Why tiebreaker-only:** Research (2025-2026) shows pointwise is better for instruction-following tasks like SDLC compliance (r=0.78 vs r=0.35 for holistic). Pairwise adds value only for close-call tiebreaking where scale drift could mislead.
+
+**Files:**
+- `tests/e2e/lib/eval-criteria.sh` — 4 functions: `should_run_pairwise`, `build_holistic_pairwise_prompt`, `validate_pairwise_result`, `compute_pairwise_verdict`
+- `tests/e2e/pairwise-compare.sh` — Main script with `--no-api` mode for testing
+- `tests/e2e/test-pairwise-compare.sh` — 26 tests
+
+**Test coverage:**
+- `test-pairwise-compare.sh` — 26 tests for threshold gating, prompt construction, validation, verdict logic, integration
 
 ### Item 17: Multi-Model Evaluation
 
