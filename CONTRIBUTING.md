@@ -150,7 +150,6 @@ python3 -c "import yaml; yaml.safe_load(open('.github/workflows/daily-update.yml
 ./tests/test-compliance.sh
 ./tests/test-sdp-calculation.sh
 ./tests/test-external-benchmark.sh
-./tests/test-token-extraction.sh
 
 # Run E2E validation (no API key needed)
 ./tests/e2e/run-simulation.sh --validate

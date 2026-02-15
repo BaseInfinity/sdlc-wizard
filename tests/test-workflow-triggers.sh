@@ -1507,6 +1507,142 @@ test_monthly_no_allowed_tools_input
 test_monthly_no_outputs_response
 test_monthly_extracts_from_output_file
 
+# ============================================
+# Silent Workflow Failure Regression Tests
+# ============================================
+# These tests ensure previously-identified silent failures
+# remain fixed after the post-audit cleanup.
+
+# Test 67: ci.yml has no dead token extraction showing N/A
+test_ci_no_dead_token_extraction() {
+    WORKFLOW="$REPO_ROOT/.github/workflows/ci.yml"
+
+    if [ ! -f "$WORKFLOW" ]; then
+        fail "CI workflow file not found"
+        return
+    fi
+
+    # The execution output file from claude-code-action@v1 does NOT contain
+    # .usage.input_tokens, .token_usage, .total_tokens, etc.
+    # Any jq paths extracting these are dead code producing N/A values.
+    if grep -q '\.usage\.input_tokens\|\.token_usage\|\.total_tokens' "$WORKFLOW"; then
+        fail "ci.yml still has dead token extraction code (all values show N/A)"
+    else
+        pass "ci.yml has no dead token extraction code"
+    fi
+}
+
+# Test 68: ci.yml has score history git commit step
+test_ci_score_history_committed() {
+    WORKFLOW="$REPO_ROOT/.github/workflows/ci.yml"
+
+    if [ ! -f "$WORKFLOW" ]; then
+        fail "CI workflow file not found"
+        return
+    fi
+
+    # score-history.jsonl must be committed back to the repo
+    # so it persists across CI runs (ephemeral runners lose it otherwise)
+    if grep -A 5 'score-history.jsonl' "$WORKFLOW" | grep -q 'git commit'; then
+        pass "ci.yml commits score-history.jsonl back to repo"
+    else
+        fail "ci.yml does not commit score-history.jsonl (history lost on ephemeral runner)"
+    fi
+}
+
+# Test 69: ci-autofix has no show_full_output input
+test_ci_autofix_no_show_full_output() {
+    WORKFLOW="$REPO_ROOT/.github/workflows/ci-autofix.yml"
+
+    if [ ! -f "$WORKFLOW" ]; then
+        fail "ci-autofix.yml not found"
+        return
+    fi
+
+    if grep -q 'show_full_output' "$WORKFLOW"; then
+        fail "ci-autofix.yml still has invalid 'show_full_output' input"
+    else
+        pass "ci-autofix.yml has no invalid 'show_full_output' input"
+    fi
+}
+
+# Test 70: weekly-community e2e-test triggers on findings (not just actions)
+test_weekly_e2e_triggers_on_findings() {
+    WORKFLOW="$REPO_ROOT/.github/workflows/weekly-community.yml"
+
+    if [ ! -f "$WORKFLOW" ]; then
+        fail "weekly-community.yml not found"
+        return
+    fi
+
+    # has_suggestions should be based on findings_count (not actions_count)
+    # because Claude may structure output without .recommended_actions key
+    python3 -c "
+import yaml
+with open('$WORKFLOW') as f:
+    wf = yaml.safe_load(f)
+jobs = wf.get('jobs', {})
+scan_job = jobs.get('scan-community', {})
+outputs = scan_job.get('outputs', {})
+has_suggestions = str(outputs.get('has_suggestions', ''))
+# Should reference findings_count, not actions_count
+if 'findings_count' in has_suggestions:
+    print('USES_FINDINGS')
+elif 'actions_count' in has_suggestions:
+    print('USES_ACTIONS')
+else:
+    print('UNKNOWN')
+" > /tmp/weekly_trigger_check.txt 2>&1
+
+    if grep -q "USES_FINDINGS" /tmp/weekly_trigger_check.txt; then
+        pass "weekly-community e2e-test triggers on findings_count (robust)"
+    else
+        fail "weekly-community e2e-test triggers on actions_count (fragile — depends on exact JSON key name)"
+    fi
+}
+
+# Test 71: monthly-research e2e-test triggers on notable research
+test_monthly_e2e_triggers_on_notable() {
+    WORKFLOW="$REPO_ROOT/.github/workflows/monthly-research.yml"
+
+    if [ ! -f "$WORKFLOW" ]; then
+        fail "monthly-research.yml not found"
+        return
+    fi
+
+    # has_updates should NOT depend solely on .recommended_wizard_updates
+    # because Claude may structure output without that exact key
+    python3 -c "
+import yaml
+with open('$WORKFLOW') as f:
+    wf = yaml.safe_load(f)
+jobs = wf.get('jobs', {})
+research_job = jobs.get('deep-research', {})
+outputs = research_job.get('outputs', {})
+has_updates = str(outputs.get('has_updates', ''))
+# Should NOT reference updates_count alone (fragile)
+# Should use nothing_notable or a broader condition
+if 'nothing_notable' in has_updates:
+    print('USES_NOTHING_NOTABLE')
+elif 'updates_count' in has_updates:
+    print('USES_UPDATES_COUNT')
+else:
+    print('UNKNOWN')
+" > /tmp/monthly_trigger_check.txt 2>&1
+
+    if grep -q "USES_NOTHING_NOTABLE" /tmp/monthly_trigger_check.txt; then
+        pass "monthly-research e2e-test triggers on notable research (robust)"
+    else
+        fail "monthly-research e2e-test triggers on updates_count (fragile — depends on exact JSON key name)"
+    fi
+}
+
+test_ci_no_dead_token_extraction
+test_ci_score_history_committed
+test_ci_autofix_no_show_full_output
+test_weekly_e2e_triggers_on_findings
+test_monthly_e2e_triggers_on_notable
+
 echo ""
 echo "=== Results ==="
 echo "Passed: $PASSED"
