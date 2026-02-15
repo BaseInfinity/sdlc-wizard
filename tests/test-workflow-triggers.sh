@@ -1656,12 +1656,31 @@ test_ci_score_history_push_explicit_ref() {
     fi
 }
 
+# Test 73: ci-autofix.yml has workflows: write permission (needed to push workflow file changes)
+test_ci_autofix_has_workflows_write() {
+    WORKFLOW="$REPO_ROOT/.github/workflows/ci-autofix.yml"
+
+    if [ ! -f "$WORKFLOW" ]; then
+        fail "ci-autofix workflow file not found"
+        return
+    fi
+
+    # Without workflows: write, autofix can't push fixes to .github/workflows/ files.
+    # Git rejects with: "refusing to allow a GitHub App to create or update workflow without workflows permission"
+    if grep -q 'workflows: write' "$WORKFLOW"; then
+        pass "ci-autofix.yml has workflows: write permission (can push workflow file fixes)"
+    else
+        fail "ci-autofix.yml missing workflows: write permission (can't push workflow file fixes)"
+    fi
+}
+
 test_ci_no_dead_token_extraction
 test_ci_score_history_committed
 test_ci_autofix_no_show_full_output
 test_weekly_e2e_triggers_on_findings
 test_monthly_e2e_triggers_on_notable
 test_ci_score_history_push_explicit_ref
+test_ci_autofix_has_workflows_write
 
 echo ""
 echo "=== Results ==="

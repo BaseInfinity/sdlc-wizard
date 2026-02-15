@@ -965,6 +965,7 @@ Comprehensive audit found multiple features that silently produce no data. Tests
 | 3 | Historical context never populated | ci.yml | Depends on #2. Always shows "First run for this scenario" | **FIXED** — Fixed by #2 (score history now persists) |
 | 4 | External benchmark cache useless | external-benchmark.sh | Cache dir is on ephemeral runner — always cache miss | ACCEPTED — Fresh fetch each run works fine, falls back to 75.0 |
 | 5 | `show_full_output` invalid input | ci-autofix.yml | Not a valid `claude-code-action@v1` input, silently ignored | **FIXED** — Deleted invalid input |
+| 9 | Autofix can't push workflow files | ci-autofix.yml | Missing `workflows: write` permission — git push rejected for `.github/workflows/` changes | **FIXED** — Added `workflows: write` to permissions block |
 
 ### HIGH — Features That May Not Work Correctly
 
@@ -981,6 +982,7 @@ Comprehensive audit found multiple features that silently produce no data. Tests
 3. **Tests mock the wrong data** — `test-token-extraction.sh` deleted (validated mocked data, not reality)
 4. **Fragile trigger conditions** — E2E jobs depended on exact JSON key names. **Fix:** Broadened triggers (#6)
 5. **Invalid action inputs** — `show_full_output` silently ignored. **Fix:** Deleted (#5)
+7. **Missing workflow push permission** — Autofix couldn't push fixes to `.github/workflows/` files. **Fix:** Added `workflows: write` (#9)
 6. **False alarms** — SDP model (#7) and Phase A/B reuse (#8) both work correctly on investigation
 
 ---
