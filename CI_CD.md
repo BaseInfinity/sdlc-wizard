@@ -230,8 +230,10 @@ CI runs ──► FAIL ──► ci-self-heal ──► Claude fixes ──► c
 
 | Approach | When | How |
 |----------|------|-----|
-| **GITHUB_TOKEN** (default) | No app secrets | Commit + `gh workflow run ci.yml` to re-trigger |
+| **GITHUB_TOKEN** (default) | No app secrets | Commit + `gh workflow run ci.yml` to re-trigger (needs `actions: write`) |
 | **GitHub App** | `CI_AUTOFIX_APP_ID` secret exists | `actions/create-github-app-token` → push triggers `synchronize` |
+
+**Why `gh workflow run`?** GITHUB_TOKEN pushes do NOT trigger workflow events (GitHub's anti-infinite-loop protection). The explicit dispatch is the workaround.
 
 ### Runs On
 - `workflow_run` completion of CI (on failure)
@@ -292,10 +294,14 @@ Workflows require the GitHub Actions environment (secrets, runner context, `clau
 ## Workflow Permissions
 
 ```yaml
+# Most workflows
 permissions:
   contents: write      # For commits
   pull-requests: write # For PR creation/comments
   id-token: write      # For OIDC authentication
+
+# ci-self-heal.yml additionally needs:
+  actions: write       # For gh workflow run (CI re-trigger)
 ```
 
 ## Troubleshooting
