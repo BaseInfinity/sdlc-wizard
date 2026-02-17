@@ -204,13 +204,13 @@ Team:   Code → /code-review → Push → CI tests → CI PR Review → Team di
 Push to PR
     |
     v
-CI runs ──► FAIL ──► ci-autofix ──► Claude fixes ──► commit [autofix N/M] ──► re-trigger CI
-    |                                                                              |
-    |   <──────────────────────────────────────────────────────────────────────────┘
+CI runs ──► FAIL ──► ci-self-heal ──► Claude fixes ──► commit [autofix N/M] ──► re-trigger CI
+    |                                                                                 |
+    |   <─────────────────────────────────────────────────────────────────────────────┘
     |
     └── PASS ──► PR Review ──► APPROVE, no findings at level ──► DONE
                       |
-                      └── has findings ──► ci-autofix ──► Claude fixes all ──► loop back
+                      └── has findings ──► ci-self-heal ──► Claude fixes all ──► loop back
 ```
 
 ### Safety Measures
