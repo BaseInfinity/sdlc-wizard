@@ -79,7 +79,7 @@ jobs:
         if: steps.pr.outputs.skip != 'true'
         id: count
         run: |
-          AUTOFIX_COUNT=$(git log origin/main..HEAD --oneline --grep='\[autofix' | wc -l | tr -d ' ')
+          AUTOFIX_COUNT=$(git log origin/main..HEAD --oneline --grep='^\[autofix [0-9]' | wc -l | tr -d ' ')
           echo "count=$AUTOFIX_COUNT" >> $GITHUB_OUTPUT
           echo "Previous autofix attempts: $AUTOFIX_COUNT / $MAX_AUTOFIX_RETRIES"
 
@@ -137,6 +137,9 @@ jobs:
 
           # Extract first error/fail line for the PR comment
           ERROR_SUMMARY=$(grep -iE '(FAIL|ERROR)' /tmp/ci-failure-context.txt | head -1 | sed 's/.*\(FAIL\)/FAIL/' | cut -c1-120)
+          if [ -z "$ERROR_SUMMARY" ]; then
+            ERROR_SUMMARY="CI failed (see logs for details)"
+          fi
           echo "error_summary=$ERROR_SUMMARY" >> $GITHUB_OUTPUT
 
       # === REVIEW FINDINGS MODE ===

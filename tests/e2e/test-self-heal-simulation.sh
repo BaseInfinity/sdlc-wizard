@@ -656,6 +656,94 @@ LOGEOF
 test_error_summary_extraction
 
 echo ""
+echo "--- Autofix Grep Pattern ---"
+
+# Test 27: Autofix retry grep rejects non-autofix commits containing '[autofix'
+test_autofix_grep_rejects_false_matches() {
+    TEMP_DIR=$(mktemp -d)
+    cd "$TEMP_DIR"
+    git init -q
+    git commit --allow-empty -m "initial commit" -q
+    git commit --allow-empty -m "[autofix 1/3] fix: auto-fix from ci-failure" -q
+    git commit --allow-empty -m "docs: explain [autofix] behavior" -q
+    git commit --allow-empty -m "feat: add [autofix-related] logging" -q
+
+    # Use the tightened pattern that the workflow should use
+    # Only matches lines starting with [autofix N (the actual commit format)
+    AUTOFIX_COUNT=$(git log --oneline --grep='^\[autofix [0-9]' | wc -l | tr -d ' ')
+
+    cd "$REPO_ROOT"
+    rm -rf "$TEMP_DIR"
+
+    if [ "$AUTOFIX_COUNT" -eq 1 ]; then
+        pass "Autofix grep pattern only matches real autofix commits (found $AUTOFIX_COUNT)"
+    else
+        fail "Autofix grep pattern matched false positives (found $AUTOFIX_COUNT, expected 1)"
+    fi
+}
+
+# Test 27b: Verify the workflow file uses the tightened grep pattern
+test_workflow_grep_pattern_tightened() {
+    WORKFLOW="$REPO_ROOT/.github/workflows/ci-self-heal.yml"
+
+    if grep -Fq "grep='^\[autofix [0-9]'" "$WORKFLOW"; then
+        pass "ci-self-heal.yml uses tightened grep pattern (^\[autofix [0-9])"
+    else
+        fail "ci-self-heal.yml does not use tightened grep pattern"
+    fi
+}
+
+test_autofix_grep_rejects_false_matches
+test_workflow_grep_pattern_tightened
+
+echo ""
+echo "--- Error Summary Fallback ---"
+
+# Test 28: Error summary fallback when no FAIL/ERROR found in logs
+test_error_summary_fallback_no_match() {
+    TEMP_DIR=$(mktemp -d)
+    LOG_FILE="$TEMP_DIR/ci-failure-context.txt"
+
+    # Log with no FAIL/ERROR lines at all
+    cat > "$LOG_FILE" << 'LOGEOF'
+2026-02-17T10:00:00Z Run ./tests/test-version-logic.sh
+2026-02-17T10:00:01Z === Version Logic Tests ===
+2026-02-17T10:00:02Z PASS: v2.1.0 > v2.0.0
+2026-02-17T10:00:03Z PASS: v2.1.20 > v2.1.19
+2026-02-17T10:00:04Z === Results ===
+2026-02-17T10:00:05Z Process completed with exit code 1.
+LOGEOF
+
+    # Same extraction logic as ci-self-heal.yml (with fallback)
+    ERROR_SUMMARY=$(grep -iE '(FAIL|ERROR)' "$LOG_FILE" | head -1 | sed 's/.*\(FAIL\)/FAIL/' | cut -c1-120)
+    if [ -z "$ERROR_SUMMARY" ]; then
+        ERROR_SUMMARY="CI failed (see logs for details)"
+    fi
+
+    rm -rf "$TEMP_DIR"
+
+    if [ "$ERROR_SUMMARY" = "CI failed (see logs for details)" ]; then
+        pass "Error summary provides fallback when no FAIL/ERROR found"
+    else
+        fail "Error summary fallback failed: got '$ERROR_SUMMARY'"
+    fi
+}
+
+# Test 28b: Verify the workflow file has the fallback logic
+test_workflow_error_summary_fallback() {
+    WORKFLOW="$REPO_ROOT/.github/workflows/ci-self-heal.yml"
+
+    if grep -q 'CI failed (see logs for details)' "$WORKFLOW"; then
+        pass "ci-self-heal.yml has error summary fallback text"
+    else
+        fail "ci-self-heal.yml missing error summary fallback"
+    fi
+}
+
+test_error_summary_fallback_no_match
+test_workflow_error_summary_fallback
+
+echo ""
 echo "--- Workflow YAML Validation ---"
 test_workflow_yaml_valid
 test_prompt_forbids_self_modification
