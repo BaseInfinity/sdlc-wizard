@@ -1852,11 +1852,11 @@ test_ci_autofix_retriggers_pr_review() {
     fi
 }
 
+test_monthly_has_pr_write_permission
+test_ci_autofix_has_name_field
+test_ci_autofix_has_actions_write
 test_ci_autofix_comment_has_details
 test_ci_autofix_retriggers_pr_review
-test_ci_autofix_has_name_field
-test_monthly_has_pr_write_permission
-test_ci_autofix_has_actions_write
 test_tier1_regression_threshold
 test_ci_no_dead_token_extraction
 test_ci_score_history_committed
