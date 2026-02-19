@@ -124,6 +124,13 @@ test_branch_name() {
     fi
 }
 
+# STRESS TEST: Intentional CI failure for self-heal validation
+# This test is added on the test/self-heal-stress branch to trigger
+# the ci-failure self-heal path. Claude should remove this test.
+test_intentional_ci_break() {
+    fail "STRESS TEST: intentional CI failure for self-heal validation"
+}
+
 # Run all tests
 test_same_version
 test_different_version
@@ -131,6 +138,7 @@ test_initial_state
 test_version_file_read
 test_missing_version_file
 test_branch_name
+test_intentional_ci_break
 
 echo ""
 echo "=== Results ==="
